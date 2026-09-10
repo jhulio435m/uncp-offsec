@@ -60,6 +60,25 @@ Si el repositorio es privado, autentica Git previamente con GitHub CLI o una
 clave SSH. Crea el alcance local a partir de `scope.example.json`; los alcances,
 credenciales, informes y cachés locales están excluidos deliberadamente de Git.
 
+### Imagen preconstruida privada
+
+Cada etiqueta `vX.Y.Z` publica automáticamente una imagen multi-arquitectura
+(`linux/amd64` y `linux/arm64`) en GitHub Container Registry. En otra máquina,
+autentica Docker y usa el archivo Compose complementario para evitar la compilación:
+
+```bash
+gh auth token | docker login ghcr.io -u jhulio435m --password-stdin
+docker compose -f compose.yaml -f compose.prebuilt.yaml pull uncp-offsec
+docker compose -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
+```
+
+Para fijar una versión concreta:
+
+```bash
+UNCP_OFFSEC_VERSION=0.2.0 docker compose \
+  -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
+```
+
 En Linux con Podman y el complemento Compose:
 
 ```bash

@@ -1,0 +1,4 @@
+services:
+  uncp-offsec:
+    image: ghcr.io/jhulio435m/uncp-offsec:${UNCP_OFFSEC_VERSION:-latest}
+    pull_policy: always
