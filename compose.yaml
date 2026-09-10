@@ -1,0 +1,78 @@
+services:
+  uncp-offsec:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: uncp-offsec:0.2.0
+    # Reports stay owned by the caller on Linux and are available on Windows.
+    user: "${UNCP_UID:-1000}:${UNCP_GID:-1000}"
+    environment:
+      # Optional; never written to reports or project files.
+      NVD_API_KEY: "${NVD_API_KEY:-}"
+      # Arbitrary host UIDs still need a writable home for nuclei/katana/ffuf caches.
+      HOME: /tmp/uncp-home
+      XDG_CONFIG_HOME: /tmp/uncp-home/.config
+      ZAP_API_URL: http://zap:8080
+      TRIVY_CACHE_DIR: /reports/.trivy-cache
+    volumes:
+      # Lets the container read an approved scope file, without writing project files.
+      - ./:/work:ro
+      - ./reports:/reports
+    working_dir: /work
+    entrypoint: ["uncp_offsec"]
+    networks:
+      - lab
+
+  juice-shop:
+    image: bkimminich/juice-shop:v20.0.0
+    profiles: ["lab"]
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        - "CMD"
+        - "/nodejs/bin/node"
+        - "-e"
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      lab:
+
+  lab-proxy:
+    image: nginx:1.27-alpine
+    profiles: ["lab"]
+    depends_on:
+      juice-shop:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./lab/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      lab:
+        aliases:
+          - juice-shop.local
+
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:2.17.0
+    profiles: ["lab", "dast"]
+    command:
+      - zap.sh
+      - -daemon
+      - -host
+      - 0.0.0.0
+      - -port
+      - "8080"
+      - -config
+      - api.disablekey=true
+      - -config
+      - api.addrs.addr.name=.*
+      - -config
+      - api.addrs.addr.regex=true
+    networks:
+      - lab
+
+networks:
+  lab:

@@ -1,0 +1,7 @@
+admin
+api
+assets
+ftp
+rest
+robots.txt
+does-not-exist

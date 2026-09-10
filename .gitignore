@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local scanner output and caches
+reports/
+*.html
+.cve-cache/
+
+# Local authorization and authentication material
+scope.*.json
+!scope.example.json
+!scope.lab.json
+auth-headers.json
+*.request.txt
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

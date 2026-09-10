@@ -1,0 +1,4 @@
+{
+  "Authorization": "Bearer REPLACE_WITH_SHORT_LIVED_TEST_TOKEN",
+  "X-Test-Role": "authorized-security-test"
+}

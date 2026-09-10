@@ -1,0 +1,17 @@
+{
+  "name": "Local OWASP Juice Shop laboratory",
+  "assessment_mode": "identification-only",
+  "domains": ["juice-shop.local"],
+  "allow_active": true,
+  "allow_sqli_detection": true,
+  "allow_nmap_vuln": true,
+  "allow_dast": true,
+  "allow_ajax_spider": true,
+  "allow_anonymous_assessment": true,
+  "allow_rate_limit_check": true,
+  "dast_max_minutes": 10,
+  "sqli_max_targets": 20,
+  "anonymous_max_targets": 80,
+  "rate_limit_requests": 5,
+  "exclude_paths": ["/logout", "/rest/user", "/api/Users", "/api/Feedbacks"]
+}

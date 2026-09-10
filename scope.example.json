@@ -1,0 +1,17 @@
+{
+  "name": "Authorized internal assessment",
+  "assessment_mode": "identification-only",
+  "domains": ["example.com"],
+  "allow_active": false,
+  "allow_sqli_detection": false,
+  "allow_nmap_vuln": false,
+  "allow_dast": false,
+  "allow_ajax_spider": false,
+  "allow_anonymous_assessment": false,
+  "allow_rate_limit_check": false,
+  "dast_max_minutes": 10,
+  "sqli_max_targets": 20,
+  "anonymous_max_targets": 80,
+  "rate_limit_requests": 5,
+  "exclude_paths": ["/logout", "/delete", "/payment", "/admin"]
+}

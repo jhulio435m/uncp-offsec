@@ -1,0 +1,12 @@
+# Generated from the validated local environment. Update with pip-tools or uv,
+# review, and test before changing this file. CI should add hashes before a
+# supply-chain-sensitive release.
+cffi==2.1.1
+click==8.4.2
+cryptography==50.0.1
+dnspython==2.8.0
+markdown-it-py==4.2.0
+mdurl==0.1.2
+pycparser==3.0
+Pygments==2.21.0
+rich==15.0.0
