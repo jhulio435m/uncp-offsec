@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-    image: uncp-offsec:0.3.1
+    image: uncp-offsec:0.3.2
     # Reports stay owned by the caller on Linux and are available on Windows.
     user: "${UNCP_UID:-1000}:${UNCP_GID:-1000}"
     environment:

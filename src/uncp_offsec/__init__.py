@@ -5,7 +5,7 @@ Wraps the MailSec email tool plus a pipeline of battle-tested web recon tools
 single scored, browsable report.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 from mailsec.models import Severity
 

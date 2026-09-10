@@ -67,15 +67,15 @@ jobs:
           file: ./Containerfile
           platforms: linux/amd64
           load: true
-          tags: uncp-offsec:0.3.1
+          tags: uncp-offsec:0.3.2
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Validate complete container stack
         run: |
+          trap 'docker compose down' EXIT
           docker compose up -d --wait zap
-          docker compose run --rm --no-build uncp-offsec doctor --full
-          docker compose down
+          docker compose run --rm uncp-offsec doctor --full
 
       - name: Build and publish image
         uses: docker/build-push-action@v6
