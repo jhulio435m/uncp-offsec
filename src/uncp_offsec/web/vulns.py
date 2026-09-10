@@ -14,7 +14,7 @@ MODULE_NAME = "vulns"
 MAX_SCORE = 18.0
 
 _INFO_TAGS = {"exposure", "misconfiguration", "default-login", "tech"}
-SAFE_TEMPLATE = "/opt/uncp-tools/nuclei-templates/tech-detect.yaml"
+SAFE_TEMPLATE = "/opt/uncp-tools/nuclei-safe"
 
 
 def parse_nuclei_json(lines: list[str]) -> list[dict]:

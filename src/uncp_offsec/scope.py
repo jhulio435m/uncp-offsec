@@ -47,8 +47,12 @@ def load(path: Path) -> AuthorizationScope:
     if not normalized:
         raise ValueError("scope file needs at least one non-empty domain")
     assessment_mode = str(raw.get("assessment_mode", "identification-only"))
-    if assessment_mode != "identification-only":
-        raise ValueError("assessment_mode must be 'identification-only'; exploitation is not supported")
+    supported_modes = ("identification-only", "active-validation")
+    if assessment_mode not in supported_modes:
+        raise ValueError(
+            "assessment_mode must be 'identification-only' or 'active-validation'; "
+            "exploitation is not supported"
+        )
     forbidden = ("allow_exploitation", "allow_persistence", "allow_data_extraction", "allow_evasion")
     enabled_forbidden = [key for key in forbidden if raw.get(key) is True]
     if enabled_forbidden:

@@ -12,6 +12,7 @@ reports
 scope.*.json
 !scope.example.json
 !scope.lab.json
+!scope.uncp.json
 auth-headers.json
 .env
 .env.*

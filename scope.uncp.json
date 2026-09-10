@@ -1,0 +1,17 @@
+{
+  "name": "UNCP authorized full assessment",
+  "assessment_mode": "active-validation",
+  "domains": ["uncp.edu.pe"],
+  "allow_active": true,
+  "allow_sqli_detection": true,
+  "allow_nmap_vuln": true,
+  "allow_dast": true,
+  "allow_ajax_spider": true,
+  "allow_anonymous_assessment": true,
+  "allow_rate_limit_check": true,
+  "dast_max_minutes": 60,
+  "sqli_max_targets": 50,
+  "anonymous_max_targets": 200,
+  "rate_limit_requests": 10,
+  "exclude_paths": ["/logout", "/delete", "/payment", "/admin"]
+}

@@ -1,6 +1,6 @@
 # UnCP OffSec
 
-Versión actual: **0.2.0**.
+Versión actual: **0.3.0**.
 
 Herramienta de evaluación de superficie web y correo para dominios autorizados.
 Combina los controles MailSec (SPF, DKIM, DMARC, SMTP, STARTTLS, MTA-STS, DANE)
@@ -52,13 +52,14 @@ git clone https://github.com/jhulio435m/uncp-offsec.git
 cd uncp-offsec
 mkdir -p reports
 docker compose build
-docker compose run --rm uncp-offsec doctor
+docker compose run --rm uncp-offsec doctor --full
 docker compose run --rm uncp-offsec scan ejemplo.com -o /reports/ejemplo.json
 ```
 
 Si el repositorio es privado, autentica Git previamente con GitHub CLI o una
-clave SSH. Crea el alcance local a partir de `scope.example.json`; los alcances,
-credenciales, informes y cachés locales están excluidos deliberadamente de Git.
+clave SSH. `scope.uncp.json` forma parte de la distribución autorizada para UNCP.
+Para otros dominios, crea un alcance local a partir de `scope.example.json`; los
+otros alcances, credenciales, informes y cachés locales permanecen excluidos de Git.
 
 ### Imagen preconstruida privada
 
@@ -75,7 +76,7 @@ docker compose -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doc
 Para fijar una versión concreta:
 
 ```bash
-UNCP_OFFSEC_VERSION=0.2.0 docker compose \
+UNCP_OFFSEC_VERSION=0.3.0 docker compose \
   -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
 ```
 
@@ -113,6 +114,9 @@ uncp_offsec scan empresa.com --no-email
 # Concentra toda la fase web en un host exacto y omite Subfinder.
 uncp_offsec scan portal.empresa.com --exact-host --no-email
 
+# Atajo: suite externa completa autorizada sobre un único subdominio.
+uncp_offsec scan -sub portal.empresa.com
+
 # Usa los resolvedores de la organización cuando sea necesario.
 uncp_offsec scan empresa.com --resolvers 10.0.0.53,10.0.0.54
 
@@ -122,6 +126,8 @@ uncp_offsec report report.json report.html
 ```
 
 `doctor` verifica los binarios nativos y Docker/Podman sin contactar un objetivo.
+Dentro de la imagen, `doctor --full` exige además todas las herramientas, la
+wordlist completa, la lista positiva Nuclei, `vulners.nse` y el alcance UNCP.
 Por defecto las herramientas web utilizan el resolvedor DNS del equipo/contenedor;
 `--resolvers` permite una configuración explícita.
 
@@ -165,6 +171,26 @@ docker compose run --rm uncp-offsec scan ejemplo.uncp.edu.pe \
 El host exacto debe seguir estando permitido por el archivo de alcance. Omite
 `--no-email` si también deseas evaluar la postura de correo de ese subdominio.
 
+#### Atajo `-sub`
+
+`-sub` (o `--sub`) ejecuta sobre un único subdominio el paquete web e infraestructura:
+HTTP(S), tecnologías, cabeceras, DNS, TLS, crawling, puertos, Nmap seguro, Nuclei
+y correlación CVE. Omite MailSec porque MX, SPF, DKIM, DMARC, MTA-STS y relay se
+evalúan sobre el dominio de correo, no sobre cada subdominio. También habilita ffuf
+cuando encuentra la wordlist incluida en la imagen. SQLi de detección, Nmap-vuln, ZAP y evaluación anónima se
+habilitan únicamente cuando el alcance concede sus permisos específicos.
+
+En Compose, ZAP es un contenedor compañero fijado por versión. Se inicia y espera
+automáticamente al ejecutar `uncp-offsec`; su API no se publica hacia el host.
+
+```bash
+uncp_offsec scan -sub www.uncp.edu.pe
+```
+
+El CLI busca un único `scope*.json` local que autorice el host. Si no existe o hay
+más de uno con igual especificidad, exige `--scope FILE`. El informe se guarda en
+`reports/<subdominio>-full.html` (o `/reports` dentro del contenedor).
+
 ### Perfiles y alcance autorizado
 
 `standard` es el perfil predeterminado: realiza descubrimiento, consultas DNS y
@@ -191,8 +217,11 @@ Nmap puede ejecutar una lista cerrada de NSE de identificación/TLS con
 `allow_nmap_vuln: true` y añade únicamente `vulners`, que correlaciona las
 versiones/CPE identificadas con CVE públicas sin lanzar exploits.
 
-El alcance usa siempre `"assessment_mode": "identification-only"` y se limita a
-los dominios declarados y sus subdominios. Si un host responde
+El alcance admite `"assessment_mode": "identification-only"` y
+`"assessment_mode": "active-validation"`. Este último habilita la validación
+activa no destructiva autorizada, pero no explotación, persistencia, extracción
+de datos ni evasión. Ambos modos se limitan a los dominios declarados y sus
+subdominios. Si un host responde
 `403`, `429` o `503`, el informe registra cobertura limitada; el escáner no intenta
 sortear WAF, CAPTCHA ni bloqueos de IP. Coordina una allowlist o ventana de pruebas
 con el responsable del activo.
@@ -266,7 +295,6 @@ establecer `allow_dast: true`; `--zap-ajax` requiere además
 `dast_max_minutes` reparte el plazo entre spider, AJAX spider y active scan:
 
 ```bash
-docker compose --profile dast up -d zap
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
   --scope /work/scope.local.json --crawl --dast --zap-ajax \
   -o /reports/ejemplo.json
@@ -354,6 +382,7 @@ escalamiento entre roles y autorización de contenido privado continúan como
 | `--anonymous-assessment` | Evalúa exposición anónima mediante métodos HTTP seguros |
 | `--rate-limit-check` | Observación acotada de HTTP 429; permiso independiente |
 | `--all-sources` | Habilita todas las fuentes OSINT de subfinder |
+| `-sub` / `--sub` | Suite externa completa autorizada para un subdominio exacto |
 | `--resolvers` | DNS para herramientas web, separados por coma |
 | `--timeout` / `--tls-timeout` | Límites de red en segundos |
 | `-o`, `--format` | Guarda JSON o HTML |
@@ -384,6 +413,7 @@ pytest
 ```
 
 `requirements.lock` fija las dependencias Python usadas por la imagen. Actualízalo
-con una herramienta de bloqueo, reconstruye la imagen y valida `doctor`, Ruff y
-pytest antes de publicar una nueva versión. Las versiones externas viven en
-`Containerfile`.
+con una herramienta de bloqueo, reconstruye la imagen y valida `doctor --full`,
+Ruff y pytest antes de publicar una nueva versión. Las versiones externas y los
+hashes de los recursos descargados viven en `Containerfile`. El workflow de GitHub
+repite estas comprobaciones antes de publicar una imagen multi-arquitectura.

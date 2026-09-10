@@ -22,6 +22,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Python quality gates
+        run: |
+          python -m pip install -e ".[dev]"
+          ruff check src tests
+          pytest -q
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -46,6 +60,23 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-
 
+      - name: Build validation image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          platforms: linux/amd64
+          load: true
+          tags: uncp-offsec:0.3.0
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate complete container stack
+        run: |
+          docker compose up -d --wait zap
+          docker compose run --rm --no-build uncp-offsec doctor --full
+          docker compose down
+
       - name: Build and publish image
         uses: docker/build-push-action@v6
         with:
@@ -56,6 +87,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: true
           sbom: true

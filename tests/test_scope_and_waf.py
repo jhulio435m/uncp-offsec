@@ -108,9 +108,20 @@ def test_scope_rejects_exploitation_mode(tmp_path: Path):
     try:
         load(path)
     except ValueError as exc:
-        assert "identification-only" in str(exc)
+        assert "active-validation" in str(exc)
     else:
         raise AssertionError("unsafe assessment mode was accepted")
+
+
+def test_scope_accepts_active_validation_mode(tmp_path: Path):
+    path = tmp_path / "scope.json"
+    path.write_text(
+        '{"domains":["example.com"],"assessment_mode":"active-validation",'
+        '"allow_active":true}'
+    )
+    scope = load(path)
+    assert scope.assessment_mode == "active-validation"
+    assert scope.allow_active is True
 
 
 def test_scope_rejects_unsafe_permissions(tmp_path: Path):

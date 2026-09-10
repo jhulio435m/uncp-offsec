@@ -94,7 +94,7 @@ class CombinedScanResult:
     timestamp: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    tool_version: str = "0.2.0"
+    tool_version: str = "0.3.0"
     overall_score: float = 0.0
     overall_max: float = 100.0
     overall_risk: str = "UNKNOWN"

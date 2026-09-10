@@ -1,4 +1,4 @@
-# Alcance operativo: identificación y reporte
+# Alcance operativo: identificación y validación activa
 
 UnCP OffSec es un escáner defensivo para activos con autorización explícita. Su
 objetivo es encontrar antes que un atacante la superficie expuesta, indicios de
@@ -12,8 +12,9 @@ pruebas acotadas y no destructivas.
 - Revisión de correo, TLS, cabeceras y configuraciones web.
 - Descubrimiento acotado de contenido y rutas dentro del dominio autorizado.
 - Validación no destructiva mediante una lista positiva de plantillas Nuclei
-  revisadas. La imagen incluye únicamente `tech-detect` (un GET al URL base) y
-  no ejecuta automáticamente la colección comunitaria de CVE.
+  revisadas. La imagen incluye detección tecnológica, cabeceras, cookies, CORS,
+  directory listing, documentación OpenAPI/Swagger y controles TLS. No ejecuta
+  automáticamente la colección comunitaria completa ni plantillas de explotación.
 - Detección SQLi en GET y solicitudes HTTP autorizadas POST/JSON, sin enumerar
   ni extraer datos.
 - OWASP ZAP con spider tradicional, AJAX spider opcional y validación activa.

@@ -40,6 +40,45 @@ def _warn(message: str) -> None:
     click.echo(click.style(message, fg="yellow"))
 
 
+def _automatic_scope(domain: str) -> Path | None:
+    """Find one local active scope that authorizes the requested host."""
+    for directory in (Path.cwd(), Path("/opt/uncp-tools/scopes")):
+        matches: list[tuple[int, Path]] = []
+        for candidate in sorted(directory.glob("scope*.json")):
+            try:
+                authorization = load_scope(candidate)
+            except (TypeError, ValueError):
+                continue
+            if authorization.allow_active and scope_allows(authorization, domain):
+                specificity = max(
+                    (len(item) for item in authorization.domains if scope_allows(authorization, domain)),
+                    default=0,
+                )
+                matches.append((specificity, candidate))
+        if matches:
+            best_specificity = max(item[0] for item in matches)
+            best = [path for specificity, path in matches if specificity == best_specificity]
+            return best[0] if len(best) == 1 else None
+    return None
+
+
+def _automatic_wordlist() -> Path | None:
+    """Return the first approved bundled/system web-content wordlist available."""
+    candidates = (
+        Path("/opt/uncp-tools/wordlists/raft-medium-directories.txt"),
+        Path("/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt"),
+        Path.cwd() / "lab" / "wordlist.txt",
+    )
+    return next((path for path in candidates if path.is_file()), None)
+
+
+def _automatic_report_dir() -> Path:
+    """Use the container report mount when present, otherwise the local folder."""
+    container_reports = Path("/reports")
+    in_container = Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+    return container_reports if in_container and container_reports.is_dir() else Path.cwd() / "reports"
+
+
 @click.group()
 @click.version_option(__version__, prog_name="uncp_offsec")
 def cli():
@@ -95,6 +134,10 @@ def cli():
 @click.option("--all-sources", is_flag=True, help="Enable every subfinder OSINT source (slower).")
 @click.option("--exact-host", is_flag=True, help="Skip Subfinder and restrict all downstream web tools to DOMAIN only.")
 @click.option(
+    "-sub", "--sub", "full_subdomain", is_flag=True,
+    help="Run the complete authorized web/infrastructure suite against one exact subdomain.",
+)
+@click.option(
     "--resolvers", default=None,
     help="Optional comma-separated DNS resolvers for web tools; defaults to the system resolver.",
 )
@@ -108,9 +151,34 @@ def cli():
               help="Report format when using -o/--output.")
 def scan_cmd(
     domain, profile, scope_path, active, no_email, no_web, with_ports, with_nmap, nmap_safe_scripts, nmap_vuln_authorized, with_nuclei, with_cves, cve_cache, dns_inventory, with_headers, with_crawl, content_discovery, wordlist, sqli_detection, sqlmap_requests, dast, zap_api_url, zap_ajax, auth_headers, api_spec_url, source_path, sast, sca, anonymous_assessment, rate_limit_check, compare_path, tls_limit,
-    selectors, no_verify_cert, all_sources, exact_host, resolvers, timeout, tls_timeout, output, fmt,
+    selectors, no_verify_cert, all_sources, exact_host, full_subdomain, resolvers, timeout, tls_timeout, output, fmt,
 ):
     """Assess both the email and web security posture of DOMAIN."""
+    if full_subdomain:
+        exact_host = True
+        no_email = True
+        active = True
+        with_nmap = True
+        nmap_safe_scripts = True
+        dns_inventory = True
+        with_headers = True
+        with_crawl = True
+        with_cves = True
+        if profile == "standard":
+            profile = "active-validation"
+        if scope_path is None:
+            scope_path = _automatic_scope(domain)
+        if cve_cache is None:
+            cve_cache = _automatic_report_dir() / ".cve-cache"
+        if wordlist is None:
+            wordlist = _automatic_wordlist()
+        if wordlist is not None:
+            content_discovery = True
+        else:
+            _warn("[!] No approved content-discovery wordlist found; ffuf will be skipped.")
+        if output is None:
+            output = _automatic_report_dir() / f"{domain}-full.html"
+
     include_email = not no_email
     include_web = not no_web
     full_active_bundle = active
@@ -142,7 +210,10 @@ def scan_cmd(
         raise click.UsageError("--profile passive cannot be combined with active modules.")
     if requested_active:
         if scope_path is None:
-            raise click.UsageError("Active tests require --scope FILE with allow_active: true.")
+            suffix = " No unique local scope*.json authorizes this host." if full_subdomain else ""
+            raise click.UsageError(
+                "Active tests require --scope FILE with allow_active: true." + suffix
+            )
         try:
             authorization = load_scope(scope_path)
         except (TypeError, ValueError) as exc:
@@ -151,6 +222,16 @@ def scan_cmd(
             raise click.UsageError("The selected scope does not set allow_active to true.")
         if not scope_allows(authorization, domain):
             raise click.UsageError(f"{domain} is not included in the selected authorization scope.")
+        if full_subdomain:
+            sqli_detection = authorization.allow_sqli_detection
+            nmap_vuln_authorized = authorization.allow_nmap_vuln
+            dast = authorization.allow_dast
+            zap_ajax = authorization.allow_dast and authorization.allow_ajax_spider
+            anonymous_assessment = authorization.allow_anonymous_assessment
+            rate_limit_check = (
+                authorization.allow_anonymous_assessment
+                and authorization.allow_rate_limit_check
+            )
         if api_spec_url:
             from urllib.parse import urlparse
             spec_host = urlparse(api_spec_url).hostname
@@ -173,8 +254,8 @@ def scan_cmd(
         if rate_limit_check and not authorization.allow_rate_limit_check:
             raise click.UsageError("The selected scope does not set allow_rate_limit_check to true.")
         _warn(
-            "[!] Identification-only mode: active probes may validate findings, but exploitation, "
-            "persistence, data extraction and WAF evasion are never performed."
+            f"[!] {authorization.assessment_mode} mode: active probes may validate findings, "
+            "but exploitation, persistence, data extraction and WAF evasion are never performed."
         )
     else:
         authorization = None
@@ -288,7 +369,8 @@ def scan_cmd(
 
 
 @cli.command()
-def doctor():
+@click.option("--full", is_flag=True, help="Require every tool and bundled asset used by the complete image.")
+def doctor(full):
     """Check local or containerized scan prerequisites without scanning a target."""
     click.echo(f"Platform: {platform.system()} {platform.release()}")
     click.echo("Python: " + platform.python_version())
@@ -312,6 +394,23 @@ def doctor():
             click.echo(click.style(f"OK      {binary:<12} {path} (optional module)", fg="green"))
         else:
             click.echo(click.style(f"OPTIONAL MISSING {binary}", fg="yellow"))
+            if full:
+                missing.append(binary)
+
+    if full:
+        assets = (
+            Path("/opt/uncp-tools/wordlists/raft-medium-directories.txt"),
+            Path("/opt/uncp-tools/nuclei-safe/http/technologies/tech-detect.yaml"),
+            Path("/opt/uncp-tools/nuclei-safe/http/misconfiguration/http-missing-security-headers.yaml"),
+            Path("/usr/share/nmap/scripts/vulners.nse"),
+            Path("/opt/uncp-tools/scopes/scope.uncp.json"),
+        )
+        for asset in assets:
+            if asset.is_file() and asset.stat().st_size > 0:
+                click.echo(click.style(f"OK      asset        {asset}", fg="green"))
+            else:
+                click.echo(click.style(f"MISSING asset        {asset}", fg="yellow"))
+                missing.append(str(asset))
 
     if Path("/.dockerenv").exists() or Path("/run/.containerenv").exists():
         click.echo(click.style("Container engine: running inside a container", fg="green"))
@@ -328,7 +427,8 @@ def doctor():
             "reproducible environment, or install the missing tools natively."
         )
         raise click.exceptions.Exit(1)
-    click.echo(click.style("Native web scan prerequisites are available.", fg="green"))
+    message = "Complete image prerequisites are available." if full else "Native web scan prerequisites are available."
+    click.echo(click.style(message, fg="green"))
 
 
 @cli.command()
