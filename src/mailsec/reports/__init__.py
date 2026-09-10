@@ -1,0 +1,1 @@
+"""MailSec report generators."""

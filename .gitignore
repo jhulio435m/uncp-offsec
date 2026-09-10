@@ -8,7 +8,7 @@ __pycache__/
 venv/
 
 # Local scanner output and caches
-reports/
+/reports/
 *.html
 .cve-cache/
 
