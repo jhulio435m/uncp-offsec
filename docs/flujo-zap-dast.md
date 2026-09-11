@@ -1,88 +1,61 @@
-# Flujo de OWASP ZAP DAST
+# Flujo completo de `uncp_offsec scan -sub`
 
-Este diagrama explica la fase DAST ejecutada después del descubrimiento web,
-puertos, servicios y versiones. ZAP analiza la aplicación desde el exterior;
-no revisa su código fuente.
+El diagrama contiene el recorrido completo de la suite para un subdominio exacto.
+ZAP DAST es una etapa del flujo, no el flujo completo.
 
 ```mermaid
 flowchart TD
-    A[URLs y host exacto descubiertos] --> B{¿El alcance permite DAST?}
-    B -- No --> B1[Omitir ZAP y registrar cobertura no autorizada]
-    B -- Sí --> C{¿El servicio ZAP está disponible?}
-    C -- No --> C1[Registrar cobertura incompleta]
-    C -- Sí --> D[Crear una sesión ZAP limpia]
+    A["COMANDO<br/><code>uncp_offsec scan -sub subdominio.ejemplo.edu.pe</code>"] --> B["PREPARACIÓN AUTOMÁTICA<br/>exact-host · perfil active-validation · sin correo<br/>HTML de salida · caché CVE · wordlist aprobada"]
 
-    D --> E[Seleccionar hasta 5 hosts autorizados]
-    E --> F{¿Hay cabeceras de sesión?}
-    F -- Sí --> F1[Aplicarlas solo al origen autorizado]
-    F -- No --> G[Continuar como usuario anónimo]
-    F1 --> H
-    G --> H{¿Hay una especificación OpenAPI autorizada?}
-    H -- Sí --> H1[Importar rutas y operaciones de la API]
-    H -- No --> I[Continuar con las rutas descubiertas]
-    H1 --> I
+    B --> C{"ALCANCE OBLIGATORIO<br/>¿El host está en domains y allow_active=true?"}
+    C -- "No" --> STOP["DETENER ANTES DE PROBAR<br/>No se envían pruebas fuera del alcance"]
+    C -- "Sí" --> D["APLICAR PERMISOS Y LÍMITES<br/>SQLi · Nmap vuln · DAST · AJAX · acceso anónimo · rate-limit<br/>dast ≤ 60 min · máximos de objetivos/solicitudes · exclude_paths"]
 
-    I --> J[Excluir rutas sensibles configuradas]
-    J --> J1["/logout · /delete · /payment · /admin"]
-    J1 --> K[Importar hasta 200 URLs descubiertas por Katana]
-    K --> L[Spider tradicional]
-    L --> L1[Seguir enlaces, formularios y rutas del mismo subárbol]
+    D --> E["OBJETIVO EXACTO<br/>Solo el host indicado · no Subfinder · no otros subdominios<br/>resolver IP y continuar únicamente si HTTP/HTTPS está vivo"]
 
-    L1 --> M{¿AJAX Spider está autorizado?}
-    M -- Sí --> M1[Navegar contenido generado por JavaScript]
-    M -- No --> N[Continuar]
+    E --> F["1 · SUPERFICIE WEB<br/>HTTPX/curl: HTTP, HTTPS, estado, redirección y título<br/>WhatWeb: servidor, framework, CMS y tecnologías<br/>curl: CSP, HSTS, X-Frame, cookies y otras cabeceras<br/>DNS: A, AAAA, CNAME y TXT<br/>testssl.sh: protocolos, cifrados y certificado; fallback OpenSSL"]
+
+    F --> G["2 · COBERTURA DE APLICACIÓN<br/>Katana: enlaces y JavaScript, hasta 200 URL semilla<br/>Anónimo: login, API, identificadores, recursos sensibles y acceso<br/>Rate-limit: prueba acotada solo si está permitida<br/>ffuf: wordlist, 5 req/s, 2 hilos, máximo 180 s<br/>SQLMap: solo URL parametrizadas o requests aprobadas; detección sin extraer datos"]
+
+    G --> H["3 · RED Y VULNERABILIDADES CONOCIDAS<br/>Naabu: 1,000 puertos TCP principales<br/>Nmap: confirmar servicio/versión y ejecutar scripts autorizados<br/>Nuclei: plantillas fijadas y revisadas, sin autoactualización<br/>CVE: correlacionar solo versiones exactas; sin versión no se infiere CVE"]
+
+    H --> I{"4 · ZAP DAST<br/>¿allow_dast=true y el servicio ZAP está saludable?"}
+    I -- "No" --> INC["COBERTURA INCOMPLETA<br/>Registrar TOOL_INCOMPLETE y continuar el flujo"]
+    I -- "Sí" --> J["PREPARAR ZAP<br/>Sesión limpia · cabeceras solo para el origen autorizado<br/>OpenAPI solo dentro del alcance · aplicar exclude_paths<br/>importar hasta 200 URL descubiertas por Katana"]
+
+    J --> K["RECORRIDO ZAP<br/>Spider clásico: enlaces, formularios y HTML, máximo 200 hijos<br/>AJAX Spider: Firefox headless para JavaScript/SPA, si está permitido<br/>Active Scan: variaciones controladas para XSS, inyección,<br/>traversal, cookies, cabeceras y errores de configuración"]
+
+    K --> L["NORMALIZAR ALERTAS ZAP<br/>Descartar las marcadas false positive · agrupar ocurrencias<br/>conservar URL, método, parámetro, evidencia, CWE y confianza"]
+
+    L --> M{"5 · ¿SE ENTREGÓ CÓDIGO CON --source?"}
+    M -- "SAST" --> M1["Semgrep o Bandit<br/>análisis estático"]
+    M -- "SCA" --> M2["Trivy o pip-audit<br/>dependencias"]
+    M -- "No" --> N
     M1 --> N
+    M2 --> N
+    INC --> M
 
-    N --> O[Escaneo activo]
-    O --> O1[Enviar variaciones controladas de parámetros y cabeceras]
-    O1 --> O2[Observar errores, reflejos y cambios de respuesta]
-    O2 --> P[Recopilar alertas de ZAP]
+    N["6 · CONSOLIDACIÓN<br/>Correlacionar cabeceras, TLS, puertos, Nmap, Nuclei,<br/>CVE, ZAP y, si existen, SAST/SCA<br/>deduplicar · severidad · estado POTENTIAL/PROBABLE<br/>calcular puntuación, cobertura, confianza y OWASP Top 10"] --> O["7 · INFORME HTML O JSON<br/>Módulos ejecutados · hallazgos únicos · evidencia<br/>ocurrencias · límites · timeouts · cobertura incompleta"]
 
-    P --> Q[Descartar alertas marcadas como falso positivo]
-    Q --> R[Agrupar ocurrencias por regla]
-    R --> S[Conservar URL, método, parámetro, evidencia, CWE y confianza]
-    S --> T{¿Terminó dentro del plazo?}
-    T -- No --> T1[Marcar cobertura incompleta]
-    T -- Sí --> U[Marcar módulo evaluado]
-    T1 --> V[Correlación con TLS, Nmap, Nuclei y CVE]
-    U --> V
-    V --> W[Informe HTML o JSON]
+    F -. "fallo o timeout" .-> INC
+    G -. "fallo o timeout" .-> INC
+    H -. "fallo o timeout" .-> INC
+    K -. "plazo agotado" .-> INC
+
+    P["LÍMITES PERMANENTES<br/>Solo activos autorizados · sin obtener acceso ni shells<br/>sin persistencia ni extracción de datos<br/>sin evasión de WAF ni borrado de rastros"] --- O
+
+    classDef decision fill:#fff3cd,stroke:#9a6700,color:#24292f;
+    classDef stop fill:#ffebe9,stroke:#cf222e,color:#24292f;
+    classDef stage fill:#ddf4ff,stroke:#0969da,color:#24292f;
+    classDef result fill:#dafbe1,stroke:#1a7f37,color:#24292f;
+    class C,I,M decision;
+    class STOP,INC stop;
+    class F,G,H,J,K,L,M1,M2 stage;
+    class O result;
 ```
 
-## Qué significa cada recorrido
-
-- **Spider tradicional:** encuentra páginas enlazadas, formularios y rutas HTML.
-- **AJAX Spider:** utiliza navegación compatible con JavaScript para descubrir
-  contenido dinámico y aplicaciones SPA.
-- **Escaneo activo:** modifica solicitudes de forma controlada para buscar señales
-  de inyección, XSS, traversal, cookies inseguras, divulgación de información y
-  otras reglas disponibles en ZAP.
-- **Correlación:** compara las alertas con los resultados de otros motores. Una
-  coincidencia aumenta la prioridad de revisión, pero no confirma por sí sola una
-  vulnerabilidad.
-
-## Límites implementados
-
-- Requiere `allow_dast: true` en el archivo de alcance.
-- El AJAX Spider requiere además `allow_ajax_spider: true`.
-- Usa como máximo cinco hosts; con `-sub` recibe únicamente el subdominio exacto.
-- Importa como máximo 200 semillas de Katana por host.
-- El spider tradicional limita cada recorrido a 200 elementos hijos.
-- El plazo predeterminado es de 10 minutos y puede configurarse con
-  `dast_max_minutes` entre 1 y 60 minutos.
-- Las rutas de `exclude_paths` no se entregan al spider ni al escaneo activo.
-- Las cabeceras de autenticación se aplican solamente al origen objetivo y se
-  eliminan de ZAP al terminar.
-- Si vence el plazo o falla la API de ZAP, el resultado se declara incompleto.
-
-## Interpretación de resultados
-
-Una alerta de ZAP es evidencia para revisión, no una vulnerabilidad confirmada.
-El informe la clasifica inicialmente como:
-
-- `POTENTIAL`: señal con evidencia o confianza limitada.
-- `PROBABLE`: confianza alta y evidencia concreta.
-- `FALSE POSITIVE`: ZAP la marcó como falso positivo y el escáner la descarta.
-
-La confirmación final requiere reproducir la condición de manera controlada y
-verificar el comportamiento del servidor sin extraer datos ni explotar el sistema.
+El comando `-sub` no descubre correo ni amplía el objetivo a otros subdominios.
+El alcance decide qué validaciones activas están autorizadas. Un resultado de
+ZAP, Nuclei o Nmap es evidencia técnica para revisión; no debe presentarse como
+vulnerabilidad confirmada hasta reproducir y validar su impacto de forma
+controlada.

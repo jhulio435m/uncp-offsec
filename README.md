@@ -15,6 +15,10 @@ shells, no extrae datos, no mantiene persistencia y no evade WAF o bloqueos. La
 definición completa y los criterios de evidencia están en
 [`ASSESSMENT_SCOPE.md`](ASSESSMENT_SCOPE.md).
 
+El recorrido integral de `scan -sub`, incluyendo descubrimiento, red, ZAP,
+correlación y reporte, está en
+[`docs/flujo-zap-dast.md`](docs/flujo-zap-dast.md).
+
 Nuclei no ejecuta la colección comunitaria completa: las etiquetas negativas no
 garantizan que una plantilla sea inocua. La imagen usa una lista positiva y
 fijada de plantillas revisadas; actualmente solo `tech-detect`, que realiza un
