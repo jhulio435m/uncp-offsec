@@ -11,8 +11,9 @@ ARG TESTSSL_REF=6555311656639356c212af364b6ded1c14faf6f5
 ARG TESTSSL_SHA256=1e1d96259e76ac10c246bfdcb6b6307f56a0da4db7a206f2ea133e830afef107
 ARG SQLMAP_REF=5f6c303f8aaeb588402ef2f61197e2a67e0da10b
 ARG SQLMAP_SHA256=44cb4fe9c89662500e889e79f55aa1d53ace9dc7072fd4f9906579691182b4ed
-ARG SECLISTS_REF=2026.1
-ARG SECLISTS_SHA256=a9626959f818d9e198259665c5a88053b7b061c538f46da215d172bcba305fe9
+ARG WORDLIST_SHA256=a9626959f818d9e198259665c5a88053b7b061c538f46da215d172bcba305fe9
+ARG QUICK_WORDLIST_SHA256=35689f52759bb7097bcffe86febed470ac09b31816e770417455e4022d8d35cc
+ARG STANDARD_WORDLIST_SHA256=b15a5c07c2c8a7a026868ee6929eaf2b65f2942c9e6780bc3a91deb124432c9b
 ARG VULNERS_REF=ad39f89aaa06972d18c51ed2f484785cd9a46432
 ARG VULNERS_SHA256=96ab184c1c2da56a184f2a6e156614c9daf9e7d35142ee6c210bd54a1b312cd4
 ARG SEMGREP_VERSION=1.176.0
@@ -42,8 +43,9 @@ ARG TESTSSL_REF
 ARG TESTSSL_SHA256
 ARG SQLMAP_REF
 ARG SQLMAP_SHA256
-ARG SECLISTS_REF
-ARG SECLISTS_SHA256
+ARG WORDLIST_SHA256
+ARG QUICK_WORDLIST_SHA256
+ARG STANDARD_WORDLIST_SHA256
 ARG NUCLEI_TEMPLATES_REF
 ARG NUCLEI_TEMPLATES_SHA256
 ARG VULNERS_REF
@@ -53,6 +55,8 @@ ENV PATH=/opt/uncp-tools/bin:${PATH} \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+
+COPY wordlists/raft-*-directories.txt /opt/uncp-tools/wordlists/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       bash bsdextrautils ca-certificates curl dnsutils libpcap0.8 nmap openssl procps ruby tar whatweb \
@@ -67,10 +71,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /opt/uncp-tools/sqlmap \
     && tar -xzf /tmp/sqlmap.tar.gz -C /opt/uncp-tools/sqlmap --strip-components=1 \
     && ln -s /opt/uncp-tools/sqlmap/sqlmap.py /opt/uncp-tools/bin/sqlmap \
-    && mkdir -p /opt/uncp-tools/wordlists \
-    && curl -fsSL "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_REF}/Discovery/Web-Content/raft-medium-directories.txt" \
-       -o /opt/uncp-tools/wordlists/raft-medium-directories.txt \
-    && echo "${SECLISTS_SHA256}  /opt/uncp-tools/wordlists/raft-medium-directories.txt" | sha256sum -c - \
+    && echo "${WORDLIST_SHA256}  /opt/uncp-tools/wordlists/raft-medium-directories.txt" | sha256sum -c - \
+    && echo "${QUICK_WORDLIST_SHA256}  /opt/uncp-tools/wordlists/raft-quick-directories.txt" | sha256sum -c - \
+    && echo "${STANDARD_WORDLIST_SHA256}  /opt/uncp-tools/wordlists/raft-standard-directories.txt" | sha256sum -c - \
     && curl -fsSL "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/${NUCLEI_TEMPLATES_REF}.tar.gz" \
        -o /tmp/nuclei-templates.tar.gz \
     && echo "${NUCLEI_TEMPLATES_SHA256}  /tmp/nuclei-templates.tar.gz" | sha256sum -c - \
@@ -105,7 +108,7 @@ RUN pip install -r requirements.lock bandit==1.8.6 pip-audit==2.9.0 semgrep==${S
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-deps .
-COPY scope.uncp.json /opt/uncp-tools/scopes/scope.uncp.json
+COPY config/scopes/scope.uncp.json /opt/uncp-tools/scopes/scope.uncp.json
 
 USER uncp
 ENTRYPOINT ["uncp_offsec"]

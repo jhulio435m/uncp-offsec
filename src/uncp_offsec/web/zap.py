@@ -100,12 +100,32 @@ def _alerts(base: str, target: str, limit: int = 2000) -> list[dict]:
     return rows[:limit]
 
 
+def _inconsistent_csp_alert(alert: dict) -> bool:
+    """Drop ZAP CSP claims whose own evidence does not contain the claimed token."""
+    title = str(alert.get("name") or alert.get("alert") or "").lower()
+    evidence = str(alert.get("evidence") or "").lower()
+    expected_tokens = {
+        "csp: wildcard directive": "*",
+        "csp: script-src unsafe-inline": "unsafe-inline",
+        "csp: style-src unsafe-inline": "unsafe-inline",
+    }
+    return any(label in title and token not in evidence for label, token in expected_tokens.items())
+
+
+def _static_asset(alert: dict) -> bool:
+    path = urlparse(str(alert.get("url") or "")).path.lower()
+    return bool(re.search(r"\.(?:css|js|map|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)(?:$|/)", path))
+
+
 def parse_alerts(alerts: list[dict]) -> list[Finding]:
     """Consolidate alert instances by rule while retaining reproducible samples."""
     findings: list[Finding] = []
     groups: dict[tuple[str, str], list[dict]] = {}
     for alert in alerts:
-        if str(alert.get("confidence", "")).lower() == "false positive":
+        if (
+            str(alert.get("confidence", "")).lower() == "false positive"
+            or _inconsistent_csp_alert(alert)
+        ):
             continue
         key = (str(alert.get("pluginId") or alert.get("alertRef") or ""), str(alert.get("name") or alert.get("alert") or "ZAP alert"))
         groups.setdefault(key, []).append(alert)
@@ -116,23 +136,41 @@ def parse_alerts(alerts: list[dict]) -> list[Finding]:
         verification = "POTENTIAL"
         if confidence in ("HIGH", "CONFIRMED") and evidence:
             verification = "PROBABLE"
+        xsrf_cookie = (
+            "cookie no httponly" in title.lower()
+            and str(alert.get("param") or "").strip().lower() in {"xsrf-token", "x-xsrf-token"}
+        )
         samples = []
         seen_instances: set[tuple[str, str, str, str]] = set()
-        for instance in instances:
+        for instance in sorted(instances, key=_static_asset):
             identity = tuple(str(instance.get(field) or "") for field in ("url", "method", "param", "attack"))
             if identity in seen_instances:
                 continue
             seen_instances.add(identity)
-            if len(samples) < 20:
+            if len(samples) < 3:
                 samples.append(_detail(instance))
         cwe = str(alert.get("cweid") or "")
+        severity = alert_severity(alert)
+        recommendation = str(alert.get("solution") or "Review and remediate the affected endpoint.")
+        if xsrf_cookie:
+            severity = Severity.INFO
+            confidence = "HIGH"
+            verification = "CONTEXTUAL"
+            title = f"JavaScript-readable CSRF cookie ({alert.get('param')})"
+            recommendation = (
+                "This can be expected for the double-submit CSRF pattern. Verify separately that authentication "
+                "and session cookies use HttpOnly, Secure and an appropriate SameSite value."
+            )
         findings.append(
             Finding(
                 module=MODULE_NAME,
-                severity=alert_severity(alert),
+                severity=severity,
                 title=title,
-                detail=f"Occurrences: {len(seen_instances)}\n\n" + "\n\n--- sample ---\n".join(samples),
-                recommendation=str(alert.get("solution") or "Review and remediate the affected endpoint."),
+                detail=(
+                    f"Occurrences: {len(seen_instances)}; representative samples: "
+                    f"{len(samples)}\n\n" + "\n\n--- sample ---\n".join(samples)
+                ),
+                recommendation=recommendation,
                 rfc_ref=f"CWE-{cwe}" if cwe.isdigit() else "",
                 confidence=confidence,
                 verification_status=verification,

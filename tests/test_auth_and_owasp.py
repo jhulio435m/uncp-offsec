@@ -27,6 +27,9 @@ def test_owasp_coverage_never_claims_complete():
     assert len(rows) == 10
     assert all(row["status"] != "COMPLETE" for row in rows)
     assert next(row for row in rows if row["id"] == "A06:2025")["status"] == "MANUAL_REQUIRED"
+    assert "threat models" in next(
+        row for row in rows if row["id"] == "A06:2025"
+    )["next_step"]
 
 
 def test_zap_groups_instances_and_marks_weak_high_as_potential():

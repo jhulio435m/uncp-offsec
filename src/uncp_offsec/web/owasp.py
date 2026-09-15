@@ -17,6 +17,19 @@ OWASP_TOP_10_2025 = (
     ("A10:2025", "Mishandling of Exceptional Conditions", ("dast", "sast"), True),
 )
 
+_NEXT_STEPS = {
+    "A01:2025": "Test authenticated workflows with separate user and administrator roles.",
+    "A02:2025": "Review deployment, proxy, cloud and framework configuration.",
+    "A03:2025": "Provide the source tree or SBOM and run SCA; black-box versions are insufficient.",
+    "A04:2025": "Review application-level key storage, encryption and sensitive-data handling.",
+    "A05:2025": "Provide POST/JSON requests or source code when crawling finds no parameters.",
+    "A06:2025": "Review threat models, abuse cases, trust boundaries and business workflows.",
+    "A07:2025": "Test login, recovery, MFA and sessions with authorized test accounts.",
+    "A08:2025": "Review source, dependency locks, CI/CD controls and artifact signing evidence.",
+    "A09:2025": "Inspect production logs, alert rules, retention and incident-response exercises.",
+    "A10:2025": "Exercise error paths and review server-side exception handling in source code.",
+}
+
 
 def coverage(modules: dict[str, ModuleResult], *, authenticated: bool = False) -> list[dict]:
     """Describe evidence sources and limitations without claiming full OWASP coverage."""
@@ -44,6 +57,7 @@ def coverage(modules: dict[str, ModuleResult], *, authenticated: bool = False) -
                 "requested_modules": requested,
                 "manual_required": manual_required,
                 "limitations": limitations,
+                "next_step": _NEXT_STEPS[category_id],
             }
         )
     return rows

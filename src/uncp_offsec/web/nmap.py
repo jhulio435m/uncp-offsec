@@ -71,6 +71,8 @@ def run(
         by_host.setdefault(ip, set()).add(str(entry["port"]))
         aliases.setdefault(ip, set()).add(str(entry["hostname"]))
     rows = []
+    completed_hosts = 0
+    failed_hosts: list[str] = []
     for host, ports in by_host.items():
         with tempfile.NamedTemporaryFile(suffix=".xml") as output:
             cmd = [path, "-n", "-sT", "-sV", "--version-light", "-Pn", "-p", ",".join(sorted(ports)), "-oX", output.name]
@@ -82,10 +84,22 @@ def run(
                 cmd.extend(["--script", SAFE_DISCOVERY_SCRIPTS, "--script-timeout", "20s"])
             tool = run_tool([*cmd, host], timeout=timeout)
             if tool.ok:
+                completed_hosts += 1
                 for row in parse_xml(output.read().decode(errors="replace")):
                     row["aliases"] = ", ".join(sorted(aliases[host]))
                     rows.append(row)
-    result.assessed = True
+            else:
+                failed_hosts.append(host)
+    result.services = rows  # type: ignore[attr-defined]
+    result.assessed = completed_hosts > 0 and not failed_hosts
+    if failed_hosts:
+        result.findings.append(Finding(
+            module="nmap", severity=Severity.INFO,
+            title="Nmap service validation incomplete",
+            detail=f"Completed hosts: {completed_hosts}/{len(by_host)}. Failed: {', '.join(failed_hosts)}",
+            recommendation="Repeat service validation for the failed hosts.",
+            confidence="HIGH", verification_status="TOOL_INCOMPLETE",
+        ))
     result.findings.append(Finding(module="nmap", severity=Severity.INFO, title=f"Nmap identified {len(rows)} open service(s)", detail="\n".join(f"{row['host']} ({row.get('aliases', '')}):{row['port']} {row['service']} {row['product']} {row['version']}".strip() for row in rows), recommendation="Patch exposed service versions and restrict unintended services."))
     for row in rows:
         for script in row.get("scripts", []):

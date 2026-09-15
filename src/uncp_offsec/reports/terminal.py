@@ -37,6 +37,8 @@ def _severity_text(sev: Severity) -> str:
 
 
 def _module_status_text(mr) -> str:
+    if any(f.verification_status == "NO_CANDIDATES" for f in mr.findings):
+        return "[cyan]NO CANDIDATES[/]"
     if not mr.assessed or any(f.verification_status == "TOOL_INCOMPLETE" for f in mr.findings):
         return "[bold white on grey50]INCOMPLETE[/]"
     if not mr.findings:
@@ -99,7 +101,7 @@ def _render_web_score(result: WebScanResult) -> None:
         )
     )
     console.print(
-        f"  [bold]Coverage:[/bold] {result.coverage_score:.1f}%"
+        f"  [bold]Selected-module completion:[/bold] {result.coverage_score:.1f}%"
         f"  [bold]Confidence:[/bold] {result.confidence}"
     )
 
@@ -133,8 +135,12 @@ def render_web(result: WebScanResult) -> None:
         table.add_column("Category")
         table.add_column("Status")
         table.add_column("Evidence")
+        table.add_column("Remaining validation")
         for row in result.owasp_coverage:
-            table.add_row(f"{row['id']} {row['name']}", row["status"], ", ".join(row["evidence_modules"]) or "none")
+            table.add_row(
+                f"{row['id']} {row['name']}", row["status"],
+                ", ".join(row["evidence_modules"]) or "none", row.get("next_step", ""),
+            )
         console.print(table)
     console.print()
 

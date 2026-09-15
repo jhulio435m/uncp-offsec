@@ -61,6 +61,11 @@ def _worst(module: dict) -> str:
 
 
 def _module_status(module: dict) -> tuple[str, str]:
+    if any(
+        str(finding.get("verification_status", "")).upper() == "NO_CANDIDATES"
+        for finding in module.get("findings", [])
+    ):
+        return "NO CANDIDATES", _SEV_COLORS["INFO"]
     incomplete = any(
         str(finding.get("verification_status", "")).upper() == "TOOL_INCOMPLETE"
         for finding in module.get("findings", [])
@@ -92,7 +97,8 @@ def _phase_section(phase: dict, title: str, labels: dict) -> str:
     coverage = phase.get("coverage_score")
     confidence = phase.get("confidence")
     coverage_text = (
-        f" &middot; coverage {float(coverage):.0f}% &middot; confidence {_esc(confidence)}"
+        f" &middot; selected-module completion {float(coverage):.0f}%"
+        f" &middot; confidence {_esc(confidence)}"
         if coverage is not None
         else ""
     )
@@ -170,14 +176,14 @@ def _owasp_coverage(phase: dict) -> str:
         f"<td><b>{_esc(row.get('id', ''))}</b><br>{_esc(row.get('name', ''))}</td>"
         f"<td>{_esc(row.get('status', ''))}</td>"
         f"<td>{_esc(', '.join(row.get('evidence_modules') or []) or 'None')}</td>"
-        f"<td>{_esc(' '.join(row.get('limitations') or []) or 'Automated evidence is still not proof of absence.')}</td>"
+        f"<td>{_esc(row.get('next_step') or ' '.join(row.get('limitations') or []) or 'Automated evidence is still not proof of absence.')}</td>"
         "</tr>" for row in rows
     )
     auth = "authenticated" if phase.get("authenticated") else "unauthenticated"
     return f"""
     <h2 class="phase">OWASP Top 10:2025 coverage <span class="tot">{auth}</span></h2>
     <p class="dim">PARTIAL means the scanner collected some relevant evidence; it never means the whole category is secure.</p>
-    <table><tr><th>Category</th><th>Status</th><th>Evidence modules</th><th>Limitations</th></tr>{body}</table>
+    <table><tr><th>Category</th><th>Status</th><th>Evidence modules</th><th>Remaining validation</th></tr>{body}</table>
     """
 
 

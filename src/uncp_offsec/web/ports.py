@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from mailsec.models import Finding, ModuleResult, Severity
 
@@ -189,3 +190,43 @@ def run(
         )
 
     return result
+
+
+def reconcile_services(port_result: ModuleResult, nmap_result: ModuleResult) -> None:
+    """Replace port-number guesses with services independently identified by Nmap."""
+    services = getattr(nmap_result, "services", [])
+    by_port: dict[int, list[dict]] = {}
+    for service in services:
+        try:
+            by_port.setdefault(int(service.get("port", 0)), []).append(service)
+        except (TypeError, ValueError):
+            continue
+
+    for finding in port_result.findings:
+        if finding.verification_status != "POTENTIAL":
+            continue
+        match = re.search(r"\((\d+)/tcp\)$", finding.title)
+        if not match or int(match.group(1)) not in by_port:
+            continue
+        port = int(match.group(1))
+        rows = by_port[port]
+        identities = []
+        for row in rows:
+            identity = " ".join(
+                str(row.get(key) or "").strip() for key in ("service", "product", "version")
+            ).strip()
+            if identity and identity not in identities:
+                identities.append(identity)
+        label = ", ".join(identities) or "TCP service"
+        evidence = "\n".join(
+            f"{row.get('host')}:{port} -> "
+            f"{' '.join(str(row.get(key) or '').strip() for key in ('service', 'product', 'version')).strip()}"
+            for row in rows
+        )
+        finding.title = f"Confirmed {label} exposure ({port}/tcp)"
+        finding.detail = f"Nmap service identification:\n{evidence}"
+        finding.recommendation = (
+            "Confirm business ownership and restrict the service to authorized networks if public access is unnecessary."
+        )
+        finding.confidence = "HIGH"
+        finding.verification_status = "SERVICE_CONFIRMED"

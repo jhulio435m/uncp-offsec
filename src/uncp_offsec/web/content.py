@@ -13,6 +13,19 @@ from .tools import run as run_tool
 from .tools import temporary_list, temporary_output, which
 
 
+def wordlist_tuning(wordlist: Path) -> tuple[int, int, int, int]:
+    """Return (entries, rate, threads, estimated_seconds) for an approved list."""
+    with wordlist.open("rb") as source:
+        entries = sum(1 for line in source if line.strip() and not line.lstrip().startswith(b"#"))
+    if entries <= 2_000:
+        rate, threads = 10, 5
+    elif entries <= 10_000:
+        rate, threads = 8, 4
+    else:
+        rate, threads = 5, 2
+    return entries, rate, threads, (entries + rate - 1) // rate
+
+
 def crawl(
     hosts: list[HostInfo], *, limit: int = 200,
     headers: dict[str, str] | None = None, timeout: float | None = 180.0,
@@ -76,9 +89,10 @@ def directories(
     rows: list[str] = []
     incomplete: list[str] = []
     completed = 0
+    entries, rate, threads, estimated_seconds = wordlist_tuning(wordlist)
     for host in hosts[:10]:
         with temporary_output(prefix="uncp_offsec_ffuf_", suffix=".json") as output:
-            cmd = [path, "-u", f"{host.url.rstrip('/')}/FUZZ", "-w", str(wordlist), "-mc", "200,204,301,302,307,308,401,403", "-ac", "-rate", "5", "-t", "2", "-s", "-of", "json", "-o", output]
+            cmd = [path, "-u", f"{host.url.rstrip('/')}/FUZZ", "-w", str(wordlist), "-mc", "200,204,301,302,307,308,401,403", "-ac", "-rate", str(rate), "-t", str(threads), "-s", "-of", "json", "-o", output]
             for name, value in (headers or {}).items():
                 cmd.extend(["-H", f"{name}: {value}"])
             tool = run_tool(cmd, timeout=timeout)
@@ -94,7 +108,11 @@ def directories(
         completed += 1
     rows = sorted(set(rows))[:limit]
     result.assessed = completed > 0
-    result.findings.append(Finding(module="content_discovery", severity=Severity.INFO, title=f"ffuf discovered {len(rows)} path(s)", detail="\n".join(rows), recommendation="Validate whether discovered administrative or backup paths should be restricted."))
+    configuration = (
+        f"Wordlist: {wordlist.name} ({entries} entries)\n"
+        f"Rate: {rate} requests/s; workers: {threads}; estimated minimum per host: {estimated_seconds}s"
+    )
+    result.findings.append(Finding(module="content_discovery", severity=Severity.INFO, title=f"ffuf discovered {len(rows)} path(s)", detail=configuration + ("\n" + "\n".join(rows) if rows else ""), recommendation="Validate whether discovered administrative or backup paths should be restricted.", confidence="HIGH", verification_status="OBSERVED"))
     if incomplete:
         result.findings.append(Finding(module="content_discovery", severity=Severity.INFO, title="ffuf coverage limited", detail="\n".join(incomplete), recommendation="Use --exact-host, a target-specific wordlist, or a larger authorized execution window.", confidence="HIGH", verification_status="TOOL_INCOMPLETE"))
     return result

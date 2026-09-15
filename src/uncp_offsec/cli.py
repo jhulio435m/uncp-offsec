@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import platform
+import re
 import time
+import unicodedata
 from pathlib import Path
 
 import click
@@ -42,7 +44,11 @@ def _warn(message: str) -> None:
 
 def _automatic_scope(domain: str) -> Path | None:
     """Find one local active scope that authorizes the requested host."""
-    for directory in (Path.cwd(), Path("/opt/uncp-tools/scopes")):
+    for directory in (
+        Path.cwd() / "config" / "scopes",
+        Path.cwd(),
+        Path("/opt/uncp-tools/scopes"),
+    ):
         matches: list[tuple[int, Path]] = []
         for candidate in sorted(directory.glob("scope*.json")):
             try:
@@ -62,10 +68,16 @@ def _automatic_scope(domain: str) -> Path | None:
     return None
 
 
-def _automatic_wordlist() -> Path | None:
+def _automatic_wordlist(size: str = "complete") -> Path | None:
     """Return the first approved bundled/system web-content wordlist available."""
+    filename = {
+        "quick": "raft-quick-directories.txt",
+        "standard": "raft-standard-directories.txt",
+        "complete": "raft-medium-directories.txt",
+    }[size]
     candidates = (
-        Path("/opt/uncp-tools/wordlists/raft-medium-directories.txt"),
+        Path("/opt/uncp-tools/wordlists") / filename,
+        Path.cwd() / "wordlists" / filename,
         Path("/usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt"),
         Path.cwd() / "lab" / "wordlist.txt",
     )
@@ -79,10 +91,243 @@ def _automatic_report_dir() -> Path:
     return container_reports if in_container and container_reports.is_dir() else Path.cwd() / "reports"
 
 
-@click.group()
+def _interactive_terminal() -> bool:
+    return click.get_text_stream("stdin").isatty()
+
+
+def _target_value(value: str) -> str:
+    """Normalize and validate a domain name entered in the assistant."""
+    normalized = unicodedata.normalize("NFKC", value)
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Cf")
+    target = normalized.strip().lower().rstrip(".")
+    if "://" in target or "/" in target or not re.fullmatch(
+        r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?",
+        target,
+    ):
+        raise click.BadParameter("ingresa solo un dominio válido, sin https:// ni rutas")
+    return target
+
+
+def _prompt_target(mode: str) -> str:
+    labels = {
+        "1": "Ingresa el dominio raíz (ejemplo: uncp.edu.pe)",
+        "2": "Ingresa el subdominio exacto (ejemplo: erpcampus.uncp.edu.pe)",
+        "3": "Ingresa el dominio de correo (ejemplo: soryntel.com)",
+    }
+    while True:
+        try:
+            return _target_value(click.prompt(labels[mode]))
+        except click.BadParameter as exc:
+            click.secho(f"Entrada inválida: {exc.message}.", fg="red")
+
+
+@click.group(invoke_without_command=True)
 @click.version_option(__version__, prog_name="uncp_offsec")
-def cli():
-    """UnCP OffSec - automated email + web surface assessment."""
+@click.pass_context
+def cli(ctx):
+    """UnCP OffSec - automated email + web surface assessment.
+
+    Run without a command in an interactive terminal to open the guided assistant.
+    """
+    if ctx.invoked_subcommand is None:
+        if _interactive_terminal():
+            ctx.invoke(wizard)
+        else:
+            click.echo(ctx.get_help())
+
+
+def _mail_assessment(
+    domain: str,
+    *,
+    active: bool = False,
+    timeout: float = 10.0,
+    tls_timeout: float = 15.0,
+    no_verify_cert: bool = False,
+    selectors: str | None = None,
+    output: Path | None = None,
+    fmt: str | None = None,
+) -> None:
+    """Run and render the standalone MailSec assessment."""
+    from mailsec.reports import html_report, json_report
+
+    from .scanner import run_mail
+
+    config = ScanConfig(
+        domain=domain,
+        active=active,
+        timeout=timeout,
+        tls_timeout=tls_timeout,
+        verify_cert=not no_verify_cert,
+    )
+    if selectors:
+        config.dkim_selectors = [item.strip() for item in selectors.split(",") if item.strip()]
+
+    if active:
+        _warn("[!] Active mail mode connects to MX hosts on port 25; authorization is required.")
+    else:
+        _warn("[i] Passive mail assessment: DNS-based checks only.")
+    result = run_mail(domain, config)
+    terminal_report.render(result)
+    if output:
+        selected_format = fmt or (output.suffix.lstrip(".") if output.suffix else "json")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if selected_format == "html":
+            html_report.write(result, output)
+        else:
+            json_report.write(result, output)
+        click.echo(click.style(f"Report written to {output}", fg="green"))
+
+
+@cli.command("mail")
+@click.argument("domain")
+@click.option("--active", is_flag=True, help="Enable authorized SMTP port-25 probes.")
+@click.option("--selectors", default=None, help="Comma-separated DKIM selectors to probe.")
+@click.option("--timeout", default=10.0, type=float, show_default=True)
+@click.option("--tls-timeout", default=15.0, type=float, show_default=True)
+@click.option("--no-verify-cert", is_flag=True, help="Skip TLS certificate verification.")
+@click.option("-o", "--output", type=click.Path(path_type=Path))
+@click.option("--format", "fmt", type=click.Choice(["json", "html"]))
+def mail_cmd(domain, active, selectors, timeout, tls_timeout, no_verify_cert, output, fmt):
+    """Assess only the email security posture of DOMAIN."""
+    _mail_assessment(
+        domain,
+        active=active,
+        selectors=selectors,
+        timeout=timeout,
+        tls_timeout=tls_timeout,
+        no_verify_cert=no_verify_cert,
+        output=output,
+        fmt=fmt,
+    )
+
+
+WIZARD_MODULES = {
+    "headers": "--headers",
+    "dns": "--dns-inventory",
+    "crawl": "--crawl",
+    "content": "--content-discovery",
+    "ports": "--ports",
+    "nmap": "--nmap-safe-scripts",
+    "nuclei": "--nuclei",
+    "cves": "--cves",
+    "sqli": "--sqli-detection",
+    "anonymous": "--anonymous-assessment",
+    "dast": "--dast",
+}
+
+
+def _wizard_wordlist() -> tuple[Path, str]:
+    """Ask for a ffuf coverage tier and resolve its bundled list."""
+    choice = click.prompt(
+        "Lista ffuf: 1) Rápida (1 500, ~3 min)  "
+        "2) Estándar (10 000, ~21 min)  3) Completa (29 999, ~100 min)",
+        type=click.Choice(["1", "2", "3"]), default="2",
+    )
+    size = {"1": "quick", "2": "standard", "3": "complete"}[choice]
+    wordlist = _automatic_wordlist(size)
+    if wordlist is None:
+        raise click.UsageError(f"No se encontró la lista ffuf {size}.")
+    return wordlist, size
+
+
+@cli.command()
+def wizard():
+    """Open a guided interactive tool and preset selector."""
+    if not _interactive_terminal():
+        raise click.UsageError("wizard requires an interactive terminal (TTY).")
+
+    click.secho("UNCP OFFSEC - asistente", fg="cyan", bold=True)
+    click.echo("1) Dominio completo\n2) Subdominio exacto\n3) Solo correo\n4) Analizar archivo .eml")
+    mode = click.prompt("Elige el tipo de análisis", type=click.Choice(["1", "2", "3", "4"]), default="1")
+    if mode == "4":
+        eml = click.prompt("Ruta del archivo .eml", type=click.Path(exists=True, path_type=Path))
+        domain = click.prompt("Dominio de la organización (opcional)", default="", show_default=False)
+        args = ["analyze", str(eml)] + (["--domain", domain] if domain else [])
+    else:
+        domain = _prompt_target(mode)
+        if mode == "3":
+            args = ["mail", domain]
+            click.echo("Modos de correo:")
+            click.echo("1) Pasivo      DNS: MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT y DANE")
+            click.echo("2) Completo    Añade SMTP, STARTTLS y relay en puerto 25 (requiere autorización)")
+            click.echo("3) Personalizado")
+            mail_preset = click.prompt(
+                "Elige el modo de correo", type=click.Choice(["1", "2", "3"]), default="1"
+            )
+            if mail_preset == "2":
+                args.append("--active")
+            elif mail_preset == "3":
+                if click.confirm("¿Incluir SMTP, STARTTLS y relay en puerto 25?", default=False):
+                    args.append("--active")
+                selector_mode = click.prompt(
+                    "Selectores DKIM: 1) Automáticos  2) Personalizados",
+                    type=click.Choice(["1", "2"]), default="1",
+                )
+                if selector_mode == "2":
+                    selectors = click.prompt("Selectores separados por coma (ejemplo: selector1,selector2)")
+                    args.extend(["--selectors", selectors])
+        else:
+            click.echo("Perfiles: 1) Rápido  2) Completo  3) Personalizado")
+            preset = click.prompt("Elige un perfil", type=click.Choice(["1", "2", "3"]), default="2")
+            if mode == "2" and preset == "2":
+                args = ["scan", "-sub", domain]
+                wordlist, size = _wizard_wordlist()
+                args.extend(["--wordlist", str(wordlist)])
+                click.echo(f"Cobertura ffuf seleccionada: {size}; sin límite de tiempo.")
+            else:
+                args = ["scan", domain]
+                if mode == "2":
+                    args.extend(["--exact-host", "--no-email"])
+            if preset == "1":
+                args.extend(["--headers", "--dns-inventory"])
+            elif preset == "2" and mode == "1":
+                scope = _automatic_scope(domain)
+                if scope is None:
+                    raise click.UsageError(
+                        "No unique local scope authorizes this domain; use the quick profile "
+                        "or configure config/scopes/scope.local.json."
+                    )
+                args.extend([
+                    "--profile", "active-validation", "--scope", str(scope),
+                    "--active", "--headers", "--dns-inventory", "--crawl",
+                    "--nmap-safe-scripts", "--no-tool-time-limit",
+                ])
+            elif preset == "3":
+                click.echo("Herramientas: " + ", ".join(WIZARD_MODULES))
+                chosen = click.prompt("Escribe nombres separados por coma", default="headers,dns")
+                names = [item.strip().lower() for item in chosen.split(",") if item.strip()]
+                unknown = sorted(set(names) - WIZARD_MODULES.keys())
+                if unknown:
+                    raise click.UsageError("Herramientas desconocidas: " + ", ".join(unknown))
+                args.extend(WIZARD_MODULES[name] for name in names)
+                active_names = {"crawl", "content", "ports", "nmap", "nuclei", "sqli", "anonymous", "dast"}
+                if active_names.intersection(names):
+                    scope = _automatic_scope(domain)
+                    if scope is None:
+                        raise click.UsageError(
+                            "The selected tools require one local scope that authorizes this domain."
+                        )
+                    args.extend(["--scope", str(scope), "--no-tool-time-limit"])
+                if "content" in names:
+                    wordlist, _size = _wizard_wordlist()
+                    args.extend(["--wordlist", str(wordlist)])
+                if "cves" in names:
+                    args.extend(["--cve-cache", str(_automatic_report_dir() / ".cve-cache")])
+
+    if mode != "4" and click.confirm("¿Guardar reporte?", default=False):
+        report_format = click.prompt("Formato", type=click.Choice(["html", "json"]), default="html")
+        default_output = _automatic_report_dir() / f"{domain or 'email-analysis'}.{report_format}"
+        output = click.prompt("Ruta", default=str(default_output), type=click.Path(path_type=Path))
+        args.extend(["-o", str(output)])
+    elif mode == "4":
+        click.echo("El análisis .eml se muestra en la terminal.")
+    click.echo()
+    click.secho("Resumen", fg="cyan", bold=True)
+    click.echo(f"  Objetivo: {domain or eml}")
+    click.echo(f"  Comando:  uncp_offsec {' '.join(map(str, args))}")
+    click.echo()
+    click.secho("Iniciando análisis...", fg="cyan")
+    cli.main(args=list(map(str, args)), prog_name="uncp_offsec", standalone_mode=False)
 
 
 @cli.command()

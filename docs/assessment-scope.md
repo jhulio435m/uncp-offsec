@@ -38,7 +38,8 @@ pruebas acotadas y no destructivas.
   independiente y sin afirmar una vulnerabilidad cuando no aparece HTTP 429.
 - Correlación de evidencia independiente por CWE, CVE y título normalizado.
 - Puntuación de postura separada de cobertura y confianza. Un módulo solicitado
-  que no concluye no se interpreta como seguro y puede producir `INCONCLUSIVE`.
+  que no concluye no se interpreta como seguro; reduce cobertura y confianza sin
+  ocultar el nivel de riesgo derivado de la evidencia observada.
 
 ## Excluido sin excepción
 

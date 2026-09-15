@@ -13,11 +13,96 @@ OWASP ZAP DAST.
 El límite permanente es **validar, identificar y reportar, nunca obtener acceso**. No obtiene
 shells, no extrae datos, no mantiene persistencia y no evade WAF o bloqueos. La
 definición completa y los criterios de evidencia están en
-[`ASSESSMENT_SCOPE.md`](ASSESSMENT_SCOPE.md).
+[`docs/assessment-scope.md`](docs/assessment-scope.md).
 
 El recorrido integral de `scan -sub`, incluyendo descubrimiento, red, ZAP,
 correlación y reporte, está en
 [`docs/flujo-zap-dast.md`](docs/flujo-zap-dast.md).
+
+## Estructura del proyecto
+
+- `config/scopes/`: alcances de autorización versionados y plantilla para otros dominios.
+- `config/examples/`: ejemplos de configuración sin credenciales.
+- `docs/`: alcance operativo, flujo técnico y documentación histórica.
+- `src/`: implementación instalable de MailSec y UnCP OffSec.
+- `tests/`: pruebas automatizadas.
+- `reports/`: resultados y cachés locales ignorados por Git; los reportes UNCP
+  conservados se agrupan en `reports/uncp/`.
+- `wordlists/`: listas de descubrimiento versionadas que la imagen copia sin
+  descargarlas durante el build.
+- `lab/`: recursos mínimos del laboratorio reproducible.
+
+## Uso simple
+
+Los cuatro accesos principales son:
+
+```bash
+uncp_offsec                         # asistente interactivo
+uncp_offsec scan uncp.edu.pe       # dominio completo
+uncp_offsec scan -sub erpcampus.uncp.edu.pe
+uncp_offsec mail uncp.edu.pe       # solamente seguridad de correo
+```
+
+El asistente permite elegir dominio, subdominio, correo o análisis de un archivo
+`.eml`. Para web ofrece los perfiles Rápido, Completo y Personalizado; este último
+permite seleccionar cabeceras, DNS, crawling, contenido, puertos, Nmap, Nuclei,
+CVE, SQLi, acceso anónimo y ZAP. Los módulos activos solo se ejecutan cuando un
+scope local los autoriza.
+
+En correo, el asistente solicita específicamente el dominio de correo y ofrece:
+
+- **Pasivo:** MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT y DANE mediante DNS.
+- **Completo:** añade SMTP, STARTTLS y comprobación de relay en puerto 25.
+- **Personalizado:** permite decidir si se conecta al puerto 25 y definir selectores DKIM.
+
+El asistente acepta nombres como `soryntel.com`; rechaza URLs, protocolos y rutas.
+
+## Dos formas de uso
+
+| Modo | Incluye | Uso recomendado |
+| --- | --- | --- |
+| Python (`.venv` o `pipx`) | CLI, MailSec e informes | Correo, `.eml`, desarrollo y equipos con herramientas web instaladas |
+| Docker Compose | CLI, herramientas web, wordlist, plantillas, scope UNCP y ZAP | Escaneos web completos y ejecución reproducible |
+
+### 1. Entorno Python local (`.venv`)
+
+Úsalo durante el desarrollo o cuando las herramientas externas ya estén
+instaladas en el equipo:
+
+```bash
+.venv/bin/uncp_offsec scan uncp.edu.pe
+.venv/bin/uncp_offsec scan -sub erpcampus.uncp.edu.pe
+```
+
+El directorio `.venv` contiene Python y las dependencias del proyecto. No debe
+confundirse con `.env`, que es un archivo opcional para variables de entorno y
+no instala ni ejecuta el escáner. En el modo local, ZAP y las demás herramientas
+externas deben estar disponibles por separado.
+
+### 2. Docker Compose
+
+Es el modo recomendado para el escaneo completo porque incluye las herramientas,
+la wordlist, las plantillas revisadas, el scope UNCP y el contenedor compañero de
+ZAP:
+
+```bash
+docker compose build
+docker compose run --rm uncp-offsec scan uncp.edu.pe
+docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
+docker compose run --rm uncp-offsec mail uncp.edu.pe
+docker compose run --rm uncp-offsec
+```
+
+El último comando abre el asistente dentro del contenedor. Docker Compose conserva
+la entrada interactiva de la terminal automáticamente.
+
+En ambos modos el resultado se muestra en la terminal. Añade `-o` únicamente si
+deseas guardar un reporte. En Docker, usa una ruta bajo `/reports`:
+
+```bash
+docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe \
+  -o /reports/erpcampus.uncp.edu.pe.html
+```
 
 Nuclei no ejecuta la colección comunitaria completa: las etiquetas negativas no
 garantizan que una plantilla sea inocua. La imagen usa una lista positiva y
@@ -48,6 +133,11 @@ La fase web requiere `subfinder`, `httpx`, `whatweb`, `testssl.sh`, `naabu` y
 `nuclei`. Para que la instalación sea igual entre equipos, el proyecto incluye un
 `Containerfile` OCI compatible con Docker y Podman. Contiene las herramientas en
 versiones fijadas; es la distribución recomendada del escáner completo.
+Las listas de ffuf están versionadas en `wordlists/`: rápida (1 500), estándar
+(10 000) y completa (29 999). ffuf ajusta automáticamente su tasa y concurrencia
+según la cantidad real de entradas. La lista completa está en
+`wordlists/raft-medium-directories.txt` y
+se copia a la imagen después de validar su SHA-256.
 
 En Linux con Docker:
 
@@ -57,12 +147,13 @@ cd uncp-offsec
 mkdir -p reports
 docker compose build
 docker compose run --rm uncp-offsec doctor --full
-docker compose run --rm uncp-offsec scan ejemplo.com -o /reports/ejemplo.json
+docker compose run --rm uncp-offsec scan uncp.edu.pe
+docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
 ```
 
 Si el repositorio es privado, autentica Git previamente con GitHub CLI o una
-clave SSH. `scope.uncp.json` forma parte de la distribución autorizada para UNCP.
-Para otros dominios, crea un alcance local a partir de `scope.example.json`; los
+clave SSH. `config/scopes/scope.uncp.json` forma parte de la distribución autorizada para UNCP.
+Para otros dominios, crea un alcance local a partir de `config/scopes/scope.example.json`; los
 otros alcances, credenciales, informes y cachés locales permanecen excluidos de Git.
 
 ### Imagen preconstruida privada
@@ -160,20 +251,14 @@ añade dominios hermanos: la resolución DNS, HTTP probing, Katana, ffuf, SQLMap
 Naabu/Nmap, Nuclei, ZAP y el enriquecimiento seleccionado reciben únicamente ese
 host. `--all-sources` no tiene efecto en este modo.
 
-```bash
-docker compose run --rm uncp-offsec scan ejemplo.uncp.edu.pe \
-  --exact-host --no-email \
-  --profile active-authorized --scope /work/scope.uncp.json \
-  --active --nmap --nmap-safe-scripts --nmap-vuln-authorized \
-  --dns-inventory --headers --crawl --content-discovery \
-  --wordlist /opt/uncp-tools/wordlists/raft-medium-directories.txt \
-  --sqli-detection --anonymous-assessment --rate-limit-check \
-  --dast --zap-ajax --cves --cve-cache /reports/.cve-cache \
-  -o /reports/ejemplo.uncp.edu.pe.json
-```
+Para UNCP no necesitas escribir el perfil, el scope ni la lista de módulos. Usa
+directamente el atajo y añade `-o` solo si deseas guardar el reporte:
 
-El host exacto debe seguir estando permitido por el archivo de alcance. Omite
-`--no-email` si también deseas evaluar la postura de correo de ese subdominio.
+```bash
+docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
+docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe \
+  -o /reports/erpcampus.uncp.edu.pe.html
+```
 
 #### Atajo `-sub`
 
@@ -224,13 +309,14 @@ docker compose run --rm uncp-offsec scan -sub www.uncp.edu.pe \
 `standard` es el perfil predeterminado: realiza descubrimiento, consultas DNS y
 sondas HTTP(S) acotadas. `passive` deja explícito que no se habilitarán relay SMTP,
 puertos ni Nuclei. Cualquier módulo activo requiere un archivo JSON de autorización
-y uno de los perfiles `active-authorized`, `active-validation` o `lab`:
+y uno de los perfiles `active-authorized`, `active-validation` o `lab`. Esta
+configuración manual solo es necesaria para una organización distinta de UNCP:
 
 ```bash
-cp scope.example.json scope.local.json
+cp config/scopes/scope.example.json config/scopes/scope.local.json
 # Edita domains y confirma allow_active: true solo para una prueba aprobada.
 docker compose run --rm uncp-offsec scan ejemplo.com \
-  --profile active-authorized --scope /work/scope.local.json \
+  --profile active-authorized --scope /work/config/scopes/scope.local.json \
   -o /reports/ejemplo.html --format html
 ```
 
@@ -280,12 +366,13 @@ docker compose run --rm uncp-offsec scan ejemplo.com --dns-inventory --headers \
 ```
 
 Katana y ffuf son módulos activos: requieren `active-authorized`, un alcance que
-permita pruebas activas y, para ffuf, una wordlist aprobada. Ambos usan límites
-conservadores y no son parte del perfil estándar:
+permita pruebas activas y, para ffuf, una wordlist aprobada. No son parte del
+perfil estándar; el atajo `-sub` los configura automáticamente y elimina su
+deadline externo:
 
 ```bash
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-authorized \
-  --scope /work/scope.local.json --crawl --content-discovery \
+  --scope /work/config/scopes/scope.local.json --crawl --content-discovery \
   --wordlist /opt/uncp-tools/wordlists/raft-medium-directories.txt \
   -o /reports/ejemplo.html --format html
 ```
@@ -302,7 +389,7 @@ y `exclude_paths`:
 
 ```bash
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-authorized \
-  --scope /work/scope.local.json --sqli-detection \
+  --scope /work/config/scopes/scope.local.json --sqli-detection \
   -o /reports/ejemplo.html --format html
 ```
 
@@ -311,7 +398,7 @@ el propietario. La opción es repetible y el encabezado `Host` debe pertenecer a
 
 ```bash
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
-  --scope /work/scope.local.json --sqlmap-request /work/request-search.txt \
+  --scope /work/config/scopes/scope.local.json --sqlmap-request /work/request-search.txt \
   -o /reports/ejemplo.json
 ```
 
@@ -324,7 +411,7 @@ establecer `allow_dast: true`; `--zap-ajax` requiere además
 
 ```bash
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
-  --scope /work/scope.local.json --crawl --dast --zap-ajax \
+  --scope /work/config/scopes/scope.local.json --crawl --dast --zap-ajax \
   -o /reports/ejemplo.json
 ```
 
@@ -340,9 +427,9 @@ pero nunca incluye sus valores en JSON/HTML. Usa tokens de corta duración y eli
 el archivo al terminar:
 
 ```bash
-cp auth-headers.example.json auth-headers.local.json
+cp config/examples/auth-headers.example.json auth-headers.local.json
 docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
-  --scope /work/scope.local.json --crawl --dast --zap-ajax \
+  --scope /work/config/scopes/scope.local.json --crawl --dast --zap-ajax \
   --auth-headers /work/auth-headers.local.json \
   --api-spec-url https://api.ejemplo.com/openapi.json \
   -o /reports/autenticado.html --format html
@@ -377,7 +464,7 @@ servidor. Requiere `allow_anonymous_assessment: true` en el alcance:
 
 ```bash
 docker compose run --rm uncp-offsec scan ejemplo.com --no-email \
-  --profile active-validation --scope /work/scope.local.json \
+  --profile active-validation --scope /work/config/scopes/scope.local.json \
   --crawl --anonymous-assessment --headers --dast --zap-ajax \
   -o /reports/anonimo.html --format html
 ```
@@ -428,7 +515,7 @@ docker compose --profile lab ps
 ```
 
 Dentro de la red Compose, el escáner usa `juice-shop.local` y el alcance
-preparado en `scope.lab.json`. El laboratorio se detiene con:
+preparado en `config/scopes/scope.lab.json`. El laboratorio se detiene con:
 
 ```bash
 docker compose --profile lab down

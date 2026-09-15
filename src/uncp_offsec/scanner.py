@@ -293,6 +293,9 @@ def run_web(
             safe_scripts=nmap_safe_scripts, vuln_scripts=nmap_vuln_scripts,
             timeout=None if unlimited_tool_time else 120.0,
         )
+        if "ports" in modules:
+            ports.reconcile_services(modules["ports"], modules["nmap"])
+        tls.reconcile_nmap(modules["tls"], modules["nmap"])
     if do_nuclei:
         tick("vulns")
         modules["vulns"] = vulns.run(
@@ -331,7 +334,17 @@ def run_web(
     # is. Do not erase a useful risk rating merely because optional engines did
     # not run.
     risk_level = breakdown.risk_level
-    confidence = "HIGH" if coverage >= 90 else "MEDIUM" if coverage >= 70 else "LOW"
+    application_modules = {
+        name for name in ("crawl", "content_discovery", "sqli", "vulns", "dast", "anonymous_access")
+        if name in modules and modules[name].assessed
+    }
+    validation_modules = application_modules.intersection({"sqli", "vulns", "dast", "anonymous_access"})
+    if not application_modules:
+        confidence = "LOW"
+    elif coverage >= 90 and validation_modules:
+        confidence = "HIGH"
+    else:
+        confidence = "MEDIUM" if coverage >= 70 else "LOW"
 
     result = WebScanResult(
         domain=domain,

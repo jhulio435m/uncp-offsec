@@ -78,9 +78,23 @@ def run(
         if any(request_path.startswith(excluded) for excluded in excluded_paths):
             continue
         approved_requests.append(request_file)
-    if not path or (not targets and not approved_requests):
+    if not targets and not approved_requests:
         result.assessed = False
-        result.findings.append(Finding(module="sqli", severity=Severity.INFO, title="No SQLi candidates or sqlmap unavailable", detail="Only parameterized GET URLs discovered by Katana are eligible.", recommendation="Review scope policy and candidate URLs before enabling SQLi detection."))
+        result.findings.append(Finding(
+            module="sqli", severity=Severity.INFO, title="No SQLi candidates discovered",
+            detail="Katana found no parameterized GET URLs eligible for SQLMap.",
+            recommendation="Supply an authorized raw request when important parameters use POST or JSON.",
+            confidence="HIGH", verification_status="NO_CANDIDATES",
+        ))
+        return result
+    if not path:
+        result.assessed = False
+        result.findings.append(Finding(
+            module="sqli", severity=Severity.INFO, title="SQLMap unavailable",
+            detail="Candidate URLs exist, but sqlmap was not found on PATH.",
+            recommendation="Install SQLMap or use the complete container image.",
+            confidence="HIGH", verification_status="TOOL_INCOMPLETE",
+        ))
         return result
     result.assessed = True
     for url in targets:

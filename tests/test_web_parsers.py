@@ -1,9 +1,11 @@
 """Tests for the external-tool JSON parsers used by the web phase."""
 
 from uncp_offsec.models import HostInfo
+from uncp_offsec.web.content import wordlist_tuning
 from uncp_offsec.web.cves import _CPE, _group_matches, _rows
 from uncp_offsec.web.discovery import parse_output as parse_subfinder
 from uncp_offsec.web.headers import _parse as parse_headers
+from uncp_offsec.web.headers import _weak_csp
 from uncp_offsec.web.ports import parse_naabu_json
 from uncp_offsec.web.probe import parse_httpx_json
 from uncp_offsec.web.tech import parse_whatweb_json
@@ -43,6 +45,16 @@ def test_naabu_parse():
     assert {e["port"] for e in entries} == {443, 3306}
     assert entries[0]["hostname"] == "www.uncp.edu.pe"
     assert entries[0]["host"] == "192.0.2.1"
+
+
+def test_ffuf_tuning_uses_wordlist_size(tmp_path):
+    quick = tmp_path / "quick.txt"
+    quick.write_text("\n".join(f"path-{index}" for index in range(1500)), encoding="utf-8")
+    large = tmp_path / "large.txt"
+    large.write_text("\n".join(f"path-{index}" for index in range(10001)), encoding="utf-8")
+
+    assert wordlist_tuning(quick) == (1500, 10, 5, 150)
+    assert wordlist_tuning(large) == (10001, 5, 2, 2001)
 
 
 def test_testssl_parse_extracts_entries():
@@ -117,3 +129,8 @@ def test_header_parser_normalizes_header_names():
         "strict-transport-security": "max-age=1",
         "x-frame-options": "DENY",
     }
+
+
+def test_csp_with_only_upgrade_insecure_requests_is_weak():
+    assert _weak_csp("upgrade-insecure-requests")
+    assert not _weak_csp("default-src 'self'; script-src 'self'")

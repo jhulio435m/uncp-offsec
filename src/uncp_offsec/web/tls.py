@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mailsec.models import Finding, Severity
+from mailsec.models import Finding, ModuleResult, Severity
 
 from .tools import run, temporary_output
 
@@ -264,3 +265,53 @@ def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Find
         )
 
     return findings, protocols
+
+
+def reconcile_nmap(tls_result: ModuleResult, nmap_result: ModuleResult) -> None:
+    """Resolve narrowly provable testssl contradictions using Nmap TLS evidence."""
+    exact_names: set[str] = set()
+    kem_evidence: list[str] = []
+    for row in getattr(nmap_result, "services", []):
+        aliases = {name.strip().lower() for name in str(row.get("aliases") or "").split(",") if name.strip()}
+        for script in row.get("scripts", []):
+            script_id = str(script.get("id") or "")
+            output = str(script.get("output") or "")
+            lowered = output.lower()
+            if script_id == "ssl-cert":
+                for alias in aliases:
+                    if f"dns:{alias}" in lowered or f"commonname={alias}" in lowered or f"commonname: {alias}" in lowered:
+                        exact_names.add(alias)
+            if script_id == "ssl-enum-ciphers" and re.search(r"(?:mlkem|kyber|\bkem\b)", lowered):
+                kem_evidence.append(output[:300])
+
+    resolved: list[str] = []
+    for finding in tls_result.findings:
+        lines = finding.detail.splitlines()
+        kept = []
+        for line in lines:
+            lowered = line.lower()
+            if "cert_trust_wildcard" in lowered and exact_names:
+                resolved.append(
+                    "Wildcard trust claim was not used: Nmap ssl-cert reported an exact certificate identity for "
+                    + ", ".join(sorted(exact_names)) + "."
+                )
+            elif "fs_kems" in lowered and "no kems offered" in lowered and kem_evidence:
+                resolved.append("No-KEM claim was not used: Nmap negotiated or enumerated KEM evidence.")
+            else:
+                kept.append(line)
+        finding.detail = "\n".join(kept)
+        if len(kept) != len(lines) and " TLS " in finding.title and " issue(s)" in finding.title:
+            finding.title = re.sub(r"\d+(?= TLS (?:CRITICAL|HIGH|MEDIUM|LOW) issue\(s\))", str(len(kept)), finding.title)
+
+    tls_result.findings = [
+        finding for finding in tls_result.findings
+        if finding.detail.strip() or "issue(s)" not in finding.title
+    ]
+    if resolved:
+        tls_result.findings.append(Finding(
+            module=MODULE_NAME, severity=Severity.INFO,
+            title="Conflicting TLS evidence resolved",
+            detail="\n".join(dict.fromkeys(resolved)),
+            recommendation="Retain both engine outputs in the evidence archive when investigating TLS discrepancies.",
+            confidence="HIGH", verification_status="CROSS_ENGINE_RESOLVED",
+        ))
