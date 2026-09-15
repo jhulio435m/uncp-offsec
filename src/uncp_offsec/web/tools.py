@@ -66,7 +66,7 @@ class ToolResult:
         return [ln for ln in text.splitlines() if ln.strip()]
 
 
-def run(cmd: list[str], *, timeout: float = 120.0) -> ToolResult:
+def run(cmd: list[str], *, timeout: float | None = 120.0) -> ToolResult:
     """Run an external command and capture stdout/stderr."""
     tool = cmd[0].split("/")[-1]
     try:

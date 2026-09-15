@@ -37,6 +37,8 @@ def _severity_text(sev: Severity) -> str:
 
 
 def _module_status_text(mr) -> str:
+    if not mr.assessed or any(f.verification_status == "TOOL_INCOMPLETE" for f in mr.findings):
+        return "[bold white on grey50]INCOMPLETE[/]"
     if not mr.findings:
         return _severity_text(Severity.INFO)
     worst = max((f.severity for f in mr.findings), key=lambda s: s.weight * -1)
@@ -88,7 +90,7 @@ def _render_web_score(result: WebScanResult) -> None:
         table.add_row(cat.name, f"{cat.score:>5.1f}", f"{cat.max:>4.0f}")
     console.print(table)
     total = breakdown.total
-    risk = breakdown.risk_level
+    risk = result.risk_level
     style = _RISK_STYLE.get(risk, "bold")
     console.print(
         Panel(
@@ -105,13 +107,14 @@ def _render_web_score(result: WebScanResult) -> None:
 def render_web(result: WebScanResult) -> None:
     """Render only the web phase section."""
     console.print()
-    console.rule("[bold]WEB ASSET ASSESSMENT[/bold]")
+    title = "EXACT-HOST WEB ASSESSMENT" if result.target_mode == "exact-host" else "WEB ASSET ASSESSMENT"
+    console.rule(f"[bold]{title}[/bold]")
     console.print(f"  [bold]Target:[/bold] {result.domain}")
     if result.live_hosts:
-        console.print(
-            f"  [dim]Live hosts: {len(result.live_hosts)} / subdomains: "
-            f"{len(result.subdomains)}[/dim]"
-        )
+        if result.target_mode == "exact-host":
+            console.print(f"  [dim]Responding HTTP(S) endpoints: {len(result.live_hosts)} · subdomain discovery skipped[/dim]")
+        else:
+            console.print(f"  [dim]Live hosts: {len(result.live_hosts)} / discovered subdomains: {len(result.subdomains)}[/dim]")
     console.print()
     _render_web_summary(result)
     _render_web_score(result)
@@ -158,10 +161,17 @@ def render_combined(combined: CombinedScanResult) -> None:
     total = combined.overall_score
     risk = combined.overall_risk
     style = _RISK_STYLE.get(risk, "bold")
+    phase_label = "COMBINED" if combined.email is not None and combined.web is not None else "WEB ONLY" if combined.web is not None else "EMAIL ONLY"
+    module_summary = (
+        f"email {combined.email_modules} modules · web {combined.web_modules} modules"
+        if combined.email is not None and combined.web is not None else
+        f"web {combined.web_modules} modules" if combined.web is not None else
+        f"email {combined.email_modules} modules"
+    )
     console.print(
         Panel(
-            f"[bold]COMBINED  {total:.0f}/100     Risk: [/bold][{style}]{risk}[/]\n"
-            f"[dim]email {combined.email_modules} modules · web {combined.web_modules} modules[/dim]",
+            f"[bold]{phase_label}  {total:.0f}/100     Risk: [/bold][{style}]{risk}[/]\n"
+            f"[dim]{module_summary}[/dim]",
             border_style="grey50",
         )
     )

@@ -85,7 +85,10 @@ def run_mail(domain: str, config: ScanConfig, on_progress: Callable[[str, float]
     return mail_scan(domain, config, on_progress=on_progress)
 
 
-def run_tls(domain: str, hosts: list[HostInfo], tls_limit: int = 4) -> ModuleResult:
+def run_tls(
+    domain: str, hosts: list[HostInfo], tls_limit: int = 4,
+    tool_timeout: float | None = 150.0,
+) -> ModuleResult:
     """Run testssl.sh per https host; returns a tls ModuleResult."""
     https_hosts = [h for h in hosts if h.scheme == "https"]
     if not which("testssl.sh"):
@@ -115,7 +118,7 @@ def run_tls(domain: str, hosts: list[HostInfo], tls_limit: int = 4) -> ModuleRes
     findings: list[Finding] = []
     protocols: list[str] = []
     for host in scanned:
-        f, p = tls.analyze_host(host.host, timeout=150.0)
+        f, p = tls.analyze_host(host.host, timeout=tool_timeout)
         findings.extend(f)
         protocols.extend(p)
     if not findings:
@@ -174,6 +177,7 @@ def run_web(
     rate_limit_requests: int = 5,
     on_progress: Callable[[str, float], None] | None = None,
     exact_host: bool = False,
+    unlimited_tool_time: bool = False,
 ) -> WebScanResult:
     """Run the full web recon pipeline against a domain."""
     do_ports = active or ports_enabled
@@ -239,7 +243,11 @@ def run_web(
     else:
         dns_mr, dns_records = None, {}
     tick("tls")
-    tls_mr = run_tls(domain, hosts, tls_limit=tls_limit)
+    tool_timeout = None if unlimited_tool_time else 180.0
+    tls_mr = run_tls(
+        domain, hosts, tls_limit=tls_limit,
+        tool_timeout=None if unlimited_tool_time else 150.0,
+    )
 
     modules: dict[str, ModuleResult] = {
         "subdomains": disc_mr,
@@ -254,7 +262,9 @@ def run_web(
     crawled_urls: list[str] = []
     if crawl_enabled or sqli_enabled or anonymous_enabled:
         tick("crawl")
-        modules["crawl"], crawled_urls = content.crawl(hosts, headers=request_headers or {})
+        modules["crawl"], crawled_urls = content.crawl(
+            hosts, headers=request_headers or {}, timeout=tool_timeout,
+        )
     coverage_metrics = anonymous.classify(crawled_urls)
     if anonymous_enabled:
         tick("anonymous_access")
@@ -265,19 +275,30 @@ def run_web(
         )
     if content_enabled:
         tick("content_discovery")
-        modules["content_discovery"] = content.directories(hosts, wordlist=wordlist, headers=request_headers or {})
+        modules["content_discovery"] = content.directories(
+            hosts, wordlist=wordlist, headers=request_headers or {}, timeout=tool_timeout,
+        )
     if sqli_enabled:
         tick("sqli")
         modules["sqli"] = sqli.run(crawled_urls, excluded_paths=sqli_exclude_paths, limit=sqli_max_targets, request_files=sqli_request_files, headers=request_headers or {})
     if do_ports:
         tick("ports")
-        modules["ports"] = ports.run(hosts, timeout=300.0, resolvers=resolvers)
+        modules["ports"] = ports.run(
+            hosts, timeout=None if unlimited_tool_time else 300.0, resolvers=resolvers,
+        )
     if nmap_enabled:
         tick("nmap")
-        modules["nmap"] = nmap.run(getattr(modules.get("ports"), "open_ports", []), safe_scripts=nmap_safe_scripts, vuln_scripts=nmap_vuln_scripts)
+        modules["nmap"] = nmap.run(
+            getattr(modules.get("ports"), "open_ports", []),
+            safe_scripts=nmap_safe_scripts, vuln_scripts=nmap_vuln_scripts,
+            timeout=None if unlimited_tool_time else 120.0,
+        )
     if do_nuclei:
         tick("vulns")
-        modules["vulns"] = vulns.run(hosts, timeout=900.0, resolvers=resolvers, headers=request_headers or {})
+        modules["vulns"] = vulns.run(
+            hosts, timeout=None if unlimited_tool_time else 900.0,
+            resolvers=resolvers, headers=request_headers or {},
+        )
     if cve_enabled:
         tick("cves")
         modules["cves"] = cves.run(hosts, cache_dir=cve_cache)
@@ -305,7 +326,11 @@ def run_web(
 
     breakdown = compute_web_score(modules)
     coverage = compute_coverage(modules)
-    risk_level = "INCONCLUSIVE" if coverage < 70.0 else breakdown.risk_level
+    # Risk and coverage answer different questions. The score classifies the
+    # observed evidence; coverage/confidence states how complete that evidence
+    # is. Do not erase a useful risk rating merely because optional engines did
+    # not run.
+    risk_level = breakdown.risk_level
     confidence = "HIGH" if coverage >= 90 else "MEDIUM" if coverage >= 70 else "LOW"
 
     result = WebScanResult(
@@ -360,12 +385,7 @@ def run_combined(
 
     combined = CombinedScanResult(domain=domain)
     combined.overall_score = overall
-    combined.overall_risk = (
-        "INCONCLUSIVE"
-        if (web_result is not None and web_result.risk_level == "INCONCLUSIVE")
-        or (email is not None and email.risk_level == "INCONCLUSIVE")
-        else _risk_level(overall)
-    )
+    combined.overall_risk = _risk_level(overall) if email is not None or web_result is not None else "INCONCLUSIVE"
     combined.email = email
     combined.web = web_result
     combined.email_modules = len(email.modules) if email is not None else 0

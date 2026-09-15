@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 from mailsec.models import Finding, ModuleResult, Severity
 
@@ -12,7 +13,10 @@ from .tools import run as run_tool
 from .tools import temporary_list, temporary_output, which
 
 
-def crawl(hosts: list[HostInfo], *, limit: int = 200, headers: dict[str, str] | None = None) -> tuple[ModuleResult, list[str]]:
+def crawl(
+    hosts: list[HostInfo], *, limit: int = 200,
+    headers: dict[str, str] | None = None, timeout: float | None = 180.0,
+) -> tuple[ModuleResult, list[str]]:
     result = ModuleResult(name="crawl", score_contribution=0.0, max_score=0.0)
     path = which("katana")
     if not path or not hosts:
@@ -23,10 +27,30 @@ def crawl(hosts: list[HostInfo], *, limit: int = 200, headers: dict[str, str] | 
         cmd = [path, "-list", targets, "-silent", "-d", "2", "-c", "5", "-rl", "5", "-jc", "-kf", "all"]
         for name, value in (headers or {}).items():
             cmd.extend(["-H", f"{name}: {value}"])
-        tool = run_tool(cmd, timeout=180)
-    urls = sorted(set(tool.lines()))[:limit]
+        tool = run_tool(cmd, timeout=timeout)
+    allowed_hosts = {host.host.lower().rstrip(".") for host in hosts}
+    all_urls = sorted(set(tool.lines()))
+    urls = [
+        url for url in all_urls
+        if (urlparse(url).hostname or "").lower().rstrip(".") in allowed_hosts
+    ][:limit]
+    rejected = len(all_urls) - len(urls)
     result.assessed = tool.ok
-    result.findings.append(Finding(module="crawl", severity=Severity.INFO, title=f"Katana discovered {len(urls)} URL(s)", detail="\n".join(urls), recommendation="Review only URLs within the approved domain scope."))
+    result.findings.append(Finding(
+        module="crawl", severity=Severity.INFO,
+        title=f"Katana retained {len(urls)} in-target URL(s)",
+        detail="\n".join(urls),
+        recommendation="Review the retained URLs as application coverage evidence.",
+        confidence="HIGH", verification_status="OBSERVED",
+    ))
+    if rejected:
+        result.findings.append(Finding(
+            module="crawl", severity=Severity.INFO,
+            title=f"Katana excluded {rejected} out-of-target URL(s)",
+            detail="Links to hosts outside the initial target set were not passed to SQLi, anonymous-access, or ZAP modules.",
+            recommendation="Run separate authorized exact-host scans for linked sibling applications when needed.",
+            confidence="HIGH", verification_status="SCOPE_ENFORCED",
+        ))
     if not tool.ok:
         reason = "authorized timeout" if tool.timed_out else f"exit code {tool.returncode}"
         result.findings.append(Finding(
@@ -39,7 +63,10 @@ def crawl(hosts: list[HostInfo], *, limit: int = 200, headers: dict[str, str] | 
     return result, urls
 
 
-def directories(hosts: list[HostInfo], *, wordlist: Path, limit: int = 200, headers: dict[str, str] | None = None) -> ModuleResult:
+def directories(
+    hosts: list[HostInfo], *, wordlist: Path, limit: int = 200,
+    headers: dict[str, str] | None = None, timeout: float | None = 180.0,
+) -> ModuleResult:
     result = ModuleResult(name="content_discovery", score_contribution=0.0, max_score=0.0)
     path = which("ffuf")
     if not path or not hosts or not wordlist.is_file():
@@ -54,7 +81,7 @@ def directories(hosts: list[HostInfo], *, wordlist: Path, limit: int = 200, head
             cmd = [path, "-u", f"{host.url.rstrip('/')}/FUZZ", "-w", str(wordlist), "-mc", "200,204,301,302,307,308,401,403", "-ac", "-rate", "5", "-t", "2", "-s", "-of", "json", "-o", output]
             for name, value in (headers or {}).items():
                 cmd.extend(["-H", f"{name}: {value}"])
-            tool = run_tool(cmd, timeout=180)
+            tool = run_tool(cmd, timeout=timeout)
             try:
                 payload = json.loads(Path(output).read_text())
                 rows.extend(str(item.get("url")) for item in payload.get("results", []) if item.get("url"))

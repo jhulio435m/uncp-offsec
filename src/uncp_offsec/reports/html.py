@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html as html_mod
+import re
 from pathlib import Path
 from typing import Any
 
@@ -38,10 +39,11 @@ _EMAIL_LABELS = {
 }
 
 _SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4, "PASS": 5}
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def _esc(s: Any) -> str:
-    return html_mod.escape(str(s), quote=True)
+    return html_mod.escape(_ANSI_RE.sub("", str(s)), quote=True)
 
 
 def _badge(sev: str) -> str:
@@ -58,7 +60,31 @@ def _worst(module: dict) -> str:
     return worst
 
 
+def _module_status(module: dict) -> tuple[str, str]:
+    incomplete = any(
+        str(finding.get("verification_status", "")).upper() == "TOOL_INCOMPLETE"
+        for finding in module.get("findings", [])
+    )
+    if module.get("assessed") is False or incomplete:
+        return "INCOMPLETE", "#7f8c8d"
+    severity = _worst(module)
+    return severity, _SEV_COLORS.get(severity, "#666")
+
+
+def _detail(value: Any) -> str:
+    text = str(value or "")
+    escaped = _esc(text)
+    if len(text) <= 600:
+        return f'<div class="detail">{escaped}</div>'
+    return (
+        '<details class="evidence"><summary>Show full evidence '
+        f'({len(text.splitlines())} lines)</summary><div class="detail">{escaped}</div></details>'
+    )
+
+
 def _phase_section(phase: dict, title: str, labels: dict) -> str:
+    if not phase:
+        return ""
     modules = phase.get("modules", [])
     risk = phase.get("risk", {})
     categories = (risk.get("categories") or [])[:-1]
@@ -74,9 +100,10 @@ def _phase_section(phase: dict, title: str, labels: dict) -> str:
     summary_rows = ""
     for m in modules:
         name = labels.get(m.get("name", ""), m.get("name", ""))
+        status, color = _module_status(m)
         summary_rows += (
             f'<tr><td><b>{_esc(name)}</b></td>'
-            f'<td>{_badge(_worst(m))}</td></tr>'
+            f'<td><span class="badge" style="background:{color}">{_esc(status)}</span></td></tr>'
         )
 
     score_rows = ""
@@ -110,7 +137,7 @@ def _phase_section(phase: dict, title: str, labels: dict) -> str:
                 f'<td>{_badge(sev)}</td>'
                 f'<td><b>{_esc(f.get("title", ""))}</b>'
                 f'<div class="dim">Status: {_esc(f.get("verification_status", "OBSERVED"))} &middot; Confidence: {_esc(f.get("confidence", "UNSPECIFIED"))} &middot; Occurrences: {_esc(f.get("occurrence_count", 1))}</div>'
-                f'<div class="detail">{_esc(f.get("detail", "") or "")}</div>'
+                + _detail(f.get("detail", ""))
                 + (f'<div class="rec"><b>Recommended:</b> {_esc(rec)}</div>' if rec else "")
                 + "</td></tr>"
             )
@@ -172,6 +199,7 @@ def _asset_inventory(phase: dict) -> str:
     """Render persisted web inventory without hiding it in terminal-only output."""
     subdomains = phase.get("subdomains") or []
     hosts = phase.get("live_hosts") or []
+    exact_host = phase.get("target_mode") == "exact-host"
     if not subdomains and not hosts:
         return ""
     subdomain_rows = "".join(f"<li><code>{_esc(host)}</code></li>" for host in subdomains)
@@ -187,10 +215,16 @@ def _asset_inventory(phase: dict) -> str:
         "</tr>"
         for host in hosts
     )
+    scope_text = (
+        f"Exact target mode: {len(hosts)} responding HTTP(S) endpoint(s). Subdomain discovery was intentionally not performed."
+        if exact_host else
+        f"{len(subdomains)} discovered subdomain(s) and {len(hosts)} responding HTTP(S) host(s)."
+    )
+    discovery = "" if exact_host else f'<details><summary>Discovered subdomains ({len(subdomains)})</summary><ul>{subdomain_rows}</ul></details>'
     return f"""
     <h3>Asset inventory</h3>
-    <p class="dim">{len(subdomains)} discovered subdomain(s) and {len(hosts)} responding HTTP(S) host(s).</p>
-    <details><summary>Discovered subdomains ({len(subdomains)})</summary><ul>{subdomain_rows}</ul></details>
+    <p class="dim">{scope_text}</p>
+    {discovery}
     <details><summary>Live HTTP(S) hosts ({len(hosts)})</summary>
       <table><tr><th>URL</th><th>IP</th><th>Status</th><th>CDN/WAF</th><th>Detected technology</th><th>Exact-version CVEs</th><th>Observed headers</th></tr>{host_rows}</table>
     </details>
@@ -221,6 +255,43 @@ def _comparison(data: dict) -> str:
     return f"<h2 class=\"phase\">Changes since previous report</h2><table><tr><th>Change</th><th>Assets</th></tr>{rows}</table>"
 
 
+def _executive_summary(data: dict) -> str:
+    phases = [phase for phase in (data.get("email") or {}, data.get("web") or {}) if phase]
+    modules = [module for phase in phases for module in phase.get("modules", [])]
+    findings = [finding for module in modules for finding in module.get("findings", [])]
+    actionable = [
+        finding for finding in findings
+        if str(finding.get("severity", "INFO")).upper() in {"CRITICAL", "HIGH", "MEDIUM", "LOW"}
+        and str(finding.get("verification_status", "OBSERVED")).upper() != "TOOL_INCOMPLETE"
+    ]
+    potential = sum(
+        str(finding.get("verification_status", "")).upper() == "POTENTIAL"
+        for finding in actionable
+    )
+    incomplete_modules = sorted({
+        str(module.get("name", "unknown")) for module in modules
+        if module.get("assessed") is False or any(
+            str(finding.get("verification_status", "")).upper() == "TOOL_INCOMPLETE"
+            for finding in module.get("findings", [])
+        )
+    })
+    warning = ""
+    if incomplete_modules:
+        warning = (
+            '<div class="notice"><b>Coverage limitation:</b> '
+            + _esc(", ".join(incomplete_modules))
+            + " did not complete. Their absence of findings must not be interpreted as secure.</div>"
+        )
+    return f"""
+    <div class="cards">
+      <div><b>{len(actionable)}</b><span>actionable signals</span></div>
+      <div><b>{potential}</b><span>require validation</span></div>
+      <div><b>{len(incomplete_modules)}</b><span>incomplete modules</span></div>
+    </div>
+    {warning}
+    """
+
+
 def render(payload: Any) -> str:
     """Render a combined report dict to a standalone HTML page."""
     if isinstance(payload, dict) and "overall" not in payload:
@@ -236,16 +307,16 @@ def render(payload: Any) -> str:
     risk = str(overall.get("risk_level", "UNKNOWN")).upper()
     risk_color = _RISK_COLORS.get(risk, "#666")
 
-    email_section = _phase_section(
-        data.get("email", {}), "Email security", _EMAIL_LABELS
-    )
+    email = data.get("email") or {}
+    web = data.get("web") or {}
+    email_section = _phase_section(email, "Email security", _EMAIL_LABELS)
     web_section = _phase_section(
-        data.get("web", {}), "Web assets", {}
+        web, "Web application and infrastructure", {}
     )
-    inventory = _asset_inventory(data.get("web", {}))
-    dns_inventory = _dns_inventory(data.get("web", {}))
-    owasp_coverage = _owasp_coverage(data.get("web", {}))
-    coverage_metrics = _coverage_metrics(data.get("web", {}))
+    inventory = _asset_inventory(web)
+    dns_inventory = _dns_inventory(web)
+    owasp_coverage = _owasp_coverage(web)
+    coverage_metrics = _coverage_metrics(web)
     comparison = _comparison(data)
     execution = data.get("execution") or {}
     profile = execution.get("profile", "standard")
@@ -254,6 +325,15 @@ def render(payload: Any) -> str:
     target_mode = execution.get("target_mode", "domain-discovery")
     elapsed = execution.get("elapsed_seconds")
     elapsed_text = f" &middot; Duration: {float(elapsed):.3f}s" if elapsed is not None else ""
+    exact_host = target_mode == "exact-host"
+    report_kind = "Exact-host web assessment" if exact_host and not email else "Combined email and web assessment" if email and web else "Web assessment" if web else "Email assessment"
+    score_label = "WEB POSTURE SCORE" if web and not email else "EMAIL POSTURE SCORE" if email and not web else "OVERALL POSTURE SCORE"
+    target_note = (
+        "This report covers only the named host and the URLs retained on that host. It does not assess sibling subdomains or organizational email posture."
+        if exact_host and not email else
+        "The score summarizes only the phases and modules shown in this report."
+    )
+    executive_summary = _executive_summary(data)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -283,6 +363,13 @@ def render(payload: Any) -> str:
   .total .risk {{ display:inline-block; color:#fff; padding:.3rem 1rem; border-radius:99px; font-weight:800; margin-top:.4rem; }}
   .login {{ color:#8890b0; font-size:.8rem; margin-top:.4rem; }}
   .dim {{ color:#9aa3c0; }}
+  .context, .notice {{ margin:1rem 0; padding:.8rem 1rem; border-radius:8px; background:#172344; border-left:4px solid #5aa9e6; }}
+  .notice {{ border-left-color:#f1c40f; background:#292641; }}
+  .cards {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.7rem; margin:1rem 0; }}
+  .cards div {{ background:#161d3c; padding:.9rem; border-radius:8px; }}
+  .cards b {{ display:block; font-size:1.35rem; }}
+  .cards span {{ color:#9aa3c0; font-size:.8rem; }}
+  details.evidence {{ background:#101735; margin-top:.4rem; }}
   details {{ margin:.6rem 0; background:#161d3c; padding:.7rem .9rem; border-radius:8px; }}
   summary {{ cursor:pointer; font-weight:600; }}
   ul {{ columns:2; padding-left:1.2rem; }}
@@ -292,13 +379,16 @@ def render(payload: Any) -> str:
 <body>
 <div class="wrap">
   <h1>UnCP OffSec - <b>{_esc(domain)}</b></h1>
-  <div class="sub">Combined email + web asset assessment &middot; Generated: {_esc(timestamp)} &middot; Profile: {_esc(profile)} &middot; Mode: {_esc(assessment_mode)} &middot; Target: {_esc(target_mode)}{f' &middot; Scope: {_esc(scope)}' if scope else ''}{elapsed_text}</div>
+  <div class="sub">{_esc(report_kind)} &middot; Generated: {_esc(timestamp)} &middot; Profile: {_esc(profile)} &middot; Mode: {_esc(assessment_mode)} &middot; Target: {_esc(target_mode)}{f' &middot; Scope: {_esc(scope)}' if scope else ''}{elapsed_text}</div>
+  <div class="context"><b>Assessment boundary:</b> {_esc(target_note)}</div>
 
   <div class="total">
-    <div>OVERALL SCORE</div>
+    <div>{_esc(score_label)}</div>
     <div class="big">{total:.0f} / 100</div>
     <div class="risk" style="background:{risk_color}">RISK: {_esc(risk)}</div>
   </div>
+
+  {executive_summary}
 
   {email_section}
   {web_section}

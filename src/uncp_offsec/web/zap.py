@@ -269,6 +269,8 @@ def run(
                 "OWASP ZAP coverage incomplete",
                 f"Failed while {stage}: {exc}"[:500],
                 "Start the ZAP daemon declared in compose.yaml and retry the authorized scan.",
+                confidence="HIGH",
+                verification_status="TOOL_INCOMPLETE",
             )
         )
         return result

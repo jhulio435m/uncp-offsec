@@ -13,6 +13,8 @@ from .tools import temporary_list, which
 MODULE_NAME = "ports"
 MAX_SCORE = 12.0
 
+# Port names are hints based on conventional assignments. A TCP-connect signal
+# does not identify the service; Nmap or manual validation must confirm it.
 # port -> (severity, label)
 _PORT_MAP = {
     21: (Severity.LOW, "FTP"),
@@ -74,7 +76,7 @@ def parse_naabu_json(lines: list[str]) -> list[dict]:
 
 
 def run(
-    hosts: list[HostInfo], *, top_ports: int = 1000, timeout: float = 300.0,
+    hosts: list[HostInfo], *, top_ports: int = 1000, timeout: float | None = 300.0,
     resolvers: str | None = None,
 ) -> ModuleResult:
     """Scan live hosts for open TCP ports with naabu."""
@@ -178,9 +180,11 @@ def run(
             Finding(
                 module=MODULE_NAME,
                 severity=sev,
-                title=f"Exposed {label} ({port}/tcp)",
+                title=f"Potential {label} exposure ({port}/tcp)",
                 detail=f"Open on: {targets}",
-                recommendation="Restrict to internal networks / VPN or close if unused.",
+                recommendation="Confirm the service and ownership with Nmap or the asset owner, then restrict it if unintended.",
+                confidence="LOW",
+                verification_status="POTENTIAL",
             )
         )
 

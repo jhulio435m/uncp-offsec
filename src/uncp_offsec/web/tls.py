@@ -160,7 +160,7 @@ def _openssl_probe(host: str, port: int = 443) -> list[Finding]:
     return findings
 
 
-def analyze_host(host: str, *, timeout: float = 150.0) -> tuple[list[Finding], list[str]]:
+def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Finding], list[str]]:
     """Run testssl.sh against one https host; return (findings, protocol_list)."""
     findings: list[Finding] = []
     protocols: list[str] = []
@@ -183,7 +183,7 @@ def analyze_host(host: str, *, timeout: float = 150.0) -> tuple[list[Finding], l
                 Finding(
                     module=MODULE_NAME,
                     severity=Severity.MEDIUM,
-                    title=f"testssl.sh timed out for {host} after {timeout:.0f}s",
+                    title=f"testssl.sh timed out for {host} after {float(timeout):.0f}s",
                     detail="Applied a quick openssl fallback probe instead of the full TLS scan.",
                     recommendation="Re-run the TLS scan during off-peak hours or against a staging copy.",
                 )

@@ -184,6 +184,17 @@ evalúan sobre el dominio de correo, no sobre cada subdominio. También habilita
 cuando encuentra la wordlist incluida en la imagen. SQLi de detección, Nmap-vuln, ZAP y evaluación anónima se
 habilitan únicamente cuando el alcance concede sus permisos específicos.
 
+El atajo activa `--no-tool-time-limit`: testssl.sh, Katana, ffuf, Naabu, Nmap y
+Nuclei terminan por sí mismos, sin el límite externo del CLI. ZAP conserva
+`dast_max_minutes` del archivo de alcance porque esa ventana forma parte de la
+autorización activa. Interrumpir manualmente el proceso todavía conserva como
+incompleta cualquier evidencia parcial disponible.
+
+El nivel de riesgo se deriva del puntaje de la evidencia observada. La cobertura
+y la confianza se informan por separado: un módulo incompleto reduce ambos
+indicadores y queda advertido en el reporte, pero no reemplaza el nivel de riesgo
+por `INCONCLUSIVE`. Esa etiqueta se reserva para una ejecución sin fases evaluables.
+
 En Compose, ZAP es un contenedor compañero fijado por versión. Se inicia y espera
 automáticamente al ejecutar `uncp-offsec`; su API no se publica hacia el host.
 
@@ -192,8 +203,21 @@ uncp_offsec scan -sub www.uncp.edu.pe
 ```
 
 El CLI busca un único `scope*.json` local que autorice el host. Si no existe o hay
-más de uno con igual especificidad, exige `--scope FILE`. El informe se guarda en
-`reports/<subdominio>-full.html` (o `/reports` dentro del contenedor).
+más de uno con igual especificidad, exige `--scope FILE`. Sin `-o`, el resultado
+solo se muestra en la terminal. Para guardar un informe, indícalo expresamente:
+
+```bash
+uncp_offsec scan -sub www.uncp.edu.pe -o reports/www.uncp.edu.pe.html
+```
+
+Dentro de Compose también basta el comando corto; el alcance UNCP ya está
+empaquetado y el directorio actual se monta en `/work`:
+
+```bash
+docker compose run --rm uncp-offsec scan -sub www.uncp.edu.pe
+docker compose run --rm uncp-offsec scan -sub www.uncp.edu.pe \
+  -o /reports/www.uncp.edu.pe.html
+```
 
 ### Perfiles y alcance autorizado
 

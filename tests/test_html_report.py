@@ -61,3 +61,35 @@ def test_html_shows_triage_and_owasp_limitations():
     assert "Broken Access Control" in html
     assert "Status: POTENTIAL" in html
     assert "Occurrences: 2" in html
+
+
+def test_exact_host_web_report_uses_coherent_scope_and_coverage_labels():
+    payload = {
+        "domain": "portal.example.com",
+        "timestamp": "2026-09-14T00:00:00+00:00",
+        "overall": {"total": 72, "max": 100, "risk_level": "MEDIUM"},
+        "execution": {"target_mode": "exact-host", "assessment_mode": "active-validation"},
+        "email": {},
+        "web": {
+            "target_mode": "exact-host", "total_score": 72,
+            "subdomains": [],
+            "live_hosts": [{"url": "https://portal.example.com", "host": "portal.example.com"}],
+            "modules": [{
+                "name": "dast", "assessed": False,
+                "findings": [{
+                    "severity": "INFO", "title": "ZAP unavailable",
+                    "verification_status": "TOOL_INCOMPLETE",
+                }],
+            }],
+        },
+    }
+
+    html = render(payload)
+
+    assert "Exact-host web assessment" in html
+    assert "WEB POSTURE SCORE" in html
+    assert "Email security" not in html
+    assert "Discovered subdomains (0)" not in html
+    assert "Subdomain discovery was intentionally not performed" in html
+    assert "Coverage limitation:" in html
+    assert "INCOMPLETE" in html

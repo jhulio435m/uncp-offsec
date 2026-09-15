@@ -134,6 +134,10 @@ def cli():
 @click.option("--all-sources", is_flag=True, help="Enable every subfinder OSINT source (slower).")
 @click.option("--exact-host", is_flag=True, help="Skip Subfinder and restrict all downstream web tools to DOMAIN only.")
 @click.option(
+    "--no-tool-time-limit", is_flag=True,
+    help="Let external web tools finish without a subprocess deadline; DAST remains bounded by the authorized scope.",
+)
+@click.option(
     "-sub", "--sub", "full_subdomain", is_flag=True,
     help="Run the complete authorized web/infrastructure suite against one exact subdomain.",
 )
@@ -151,11 +155,12 @@ def cli():
               help="Report format when using -o/--output.")
 def scan_cmd(
     domain, profile, scope_path, active, no_email, no_web, with_ports, with_nmap, nmap_safe_scripts, nmap_vuln_authorized, with_nuclei, with_cves, cve_cache, dns_inventory, with_headers, with_crawl, content_discovery, wordlist, sqli_detection, sqlmap_requests, dast, zap_api_url, zap_ajax, auth_headers, api_spec_url, source_path, sast, sca, anonymous_assessment, rate_limit_check, compare_path, tls_limit,
-    selectors, no_verify_cert, all_sources, exact_host, full_subdomain, resolvers, timeout, tls_timeout, output, fmt,
+    selectors, no_verify_cert, all_sources, exact_host, no_tool_time_limit, full_subdomain, resolvers, timeout, tls_timeout, output, fmt,
 ):
     """Assess both the email and web security posture of DOMAIN."""
     if full_subdomain:
         exact_host = True
+        no_tool_time_limit = True
         no_email = True
         active = True
         with_nmap = True
@@ -176,9 +181,6 @@ def scan_cmd(
             content_discovery = True
         else:
             _warn("[!] No approved content-discovery wordlist found; ffuf will be skipped.")
-        if output is None:
-            output = _automatic_report_dir() / f"{domain}-full.html"
-
     include_email = not no_email
     include_web = not no_web
     full_active_bundle = active
@@ -342,6 +344,7 @@ def scan_cmd(
             rate_limit_check=rate_limit_check,
             rate_limit_requests=authorization.rate_limit_requests if authorization else 5,
             exact_host=exact_host,
+            unlimited_tool_time=no_tool_time_limit,
         )
         combined.scan_profile = profile
         combined.scope_name = authorization.name if authorization else ""

@@ -53,7 +53,10 @@ def parse_xml(raw: str) -> list[dict]:
     return rows
 
 
-def run(entries: list[dict], *, safe_scripts: bool = False, vuln_scripts: bool = False) -> ModuleResult:
+def run(
+    entries: list[dict], *, safe_scripts: bool = False,
+    vuln_scripts: bool = False, timeout: float | None = 120.0,
+) -> ModuleResult:
     """Identify services and optionally run bounded NSE script sets."""
     result = ModuleResult(name="nmap", score_contribution=0.0, max_score=0.0)
     path = which("nmap")
@@ -70,12 +73,14 @@ def run(entries: list[dict], *, safe_scripts: bool = False, vuln_scripts: bool =
     rows = []
     for host, ports in by_host.items():
         with tempfile.NamedTemporaryFile(suffix=".xml") as output:
-            cmd = [path, "-n", "-sT", "-sV", "--version-light", "--host-timeout", "90s", "-Pn", "-p", ",".join(sorted(ports)), "-oX", output.name]
+            cmd = [path, "-n", "-sT", "-sV", "--version-light", "-Pn", "-p", ",".join(sorted(ports)), "-oX", output.name]
+            if timeout is not None:
+                cmd[5:5] = ["--host-timeout", f"{max(1, int(timeout) - 30)}s"]
             if vuln_scripts:
                 cmd.extend(["--script", IDENTIFICATION_ONLY_VULN_SCRIPTS, "--script-timeout", "20s"])
             elif safe_scripts:
                 cmd.extend(["--script", SAFE_DISCOVERY_SCRIPTS, "--script-timeout", "20s"])
-            tool = run_tool([*cmd, host], timeout=120)
+            tool = run_tool([*cmd, host], timeout=timeout)
             if tool.ok:
                 for row in parse_xml(output.read().decode(errors="replace")):
                     row["aliases"] = ", ".join(sorted(aliases[host]))

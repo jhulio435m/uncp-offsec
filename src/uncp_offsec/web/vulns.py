@@ -59,7 +59,7 @@ def run(
     *,
     rate_limit: int = 150,
     concurrency: int = 25,
-    timeout: float = 900.0,
+    timeout: float | None = 900.0,
     resolvers: str | None = None,
     headers: dict[str, str] | None = None,
 ) -> ModuleResult:
@@ -114,13 +114,16 @@ def run(
 
     matches = parse_nuclei_json(tool.json_lines())
     if not tool.ok and not matches:
+        result.assessed = False
         result.findings.append(
             Finding(
                 module=MODULE_NAME,
-                severity=Severity.LOW,
-                title="nuclei run returned no usable data",
+                severity=Severity.INFO,
+                title="Nuclei coverage incomplete",
                 detail=f"nuclei rc={tool.returncode}.\n{(tool.stderr or tool.stdout).strip()[:500]}",
-                recommendation="",
+                recommendation="Provide the reviewed template bundle and rerun the authorized scan.",
+                confidence="HIGH",
+                verification_status="TOOL_INCOMPLETE",
             )
         )
         return result
