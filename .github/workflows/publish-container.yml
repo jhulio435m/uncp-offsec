@@ -67,7 +67,7 @@ jobs:
           file: ./Containerfile
           platforms: linux/amd64
           load: true
-          tags: uncp-offsec:0.3.2
+          tags: uncp-offsec:0.3.3
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

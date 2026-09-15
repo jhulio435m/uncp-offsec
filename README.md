@@ -1,6 +1,6 @@
 # UnCP OffSec
 
-Versión actual: **0.3.2**.
+Versión actual: **0.3.3**.
 
 Herramienta de evaluación de superficie web y correo para dominios autorizados.
 Combina los controles MailSec (SPF, DKIM, DMARC, SMTP, STARTTLS, MTA-STS, DANE)
@@ -171,7 +171,7 @@ docker compose -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doc
 Para fijar una versión concreta:
 
 ```bash
-UNCP_OFFSEC_VERSION=0.3.2 docker compose \
+UNCP_OFFSEC_VERSION=0.3.3 docker compose \
   -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
 ```
 
