@@ -1,5 +1,6 @@
 import { Findings } from "@/components/findings";
 import { RequestForm } from "@/components/request-form";
+import { SurfaceMap } from "@/components/surface-map";
 import { CONTACT, DESCRIPTION, DOES, NEVER, PLATFORM, PLATFORM_VERSION, REPO_URL, RULE, SERVICES, SITE_URL, STEPS } from "@/content/site";
 
 const jsonLd = {
@@ -82,18 +83,23 @@ export default function Page() {
               Lo encontramos <br />
               antes que <span className="marca-roja">ellos</span>.
             </h1>
-            <p className="entrada">
-              Auditoría de seguridad para su empresa y la plataforma con la que la hacemos, abierta para que su equipo
-              también la use.
-            </p>
-            <p className="acciones">
-              <a href="#plataforma" className="boton boton-rojo">
-                Ver la plataforma
-              </a>
-              <a href="#solicitar" className="boton boton-linea">
-                Solicitar auditoría
-              </a>
-            </p>
+            <div className="portada-fila">
+              <div>
+                <p className="entrada">
+                  Auditoría de seguridad para su empresa y la plataforma con la que la hacemos, abierta para que su
+                  equipo también la use.
+                </p>
+                <p className="acciones">
+                  <a href="#plataforma" className="boton boton-rojo">
+                    Ver la plataforma
+                  </a>
+                  <a href="#solicitar" className="boton boton-linea">
+                    Solicitar auditoría
+                  </a>
+                </p>
+              </div>
+              <SurfaceMap />
+            </div>
           </div>
           <ul className="banda" aria-label="Qué auditamos y con qué regla">
             {SERVICES.map((s) => (
