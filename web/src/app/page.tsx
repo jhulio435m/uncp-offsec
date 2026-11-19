@@ -2,7 +2,22 @@ import { Ceja, Choreo } from "@/components/choreo";
 import { Findings } from "@/components/findings";
 import { RequestForm } from "@/components/request-form";
 import { SurfaceMap } from "@/components/surface-map";
-import { CONTACT, DESCRIPTION, DOES, NEVER, PLATFORM, PLATFORM_VERSION, REPO_URL, RULE, SERVICES, SITE_URL, STEPS } from "@/content/site";
+import {
+  CONTACT,
+  DESCRIPTION,
+  DOES,
+  FAQ,
+  NEVER,
+  PLATFORM,
+  PLATFORM_VERSION,
+  REPORT_PARTS,
+  REPO_URL,
+  RULE,
+  RUN,
+  SERVICES,
+  SITE_URL,
+  STEPS,
+} from "@/content/site";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -49,6 +64,11 @@ const jsonLd = {
       url: `${SITE_URL}/#plataforma`,
       publisher: { "@id": "https://soryntel.com/#organization" },
     },
+    {
+      "@type": "FAQPage",
+      "@id": `${SITE_URL}/#preguntas`,
+      mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    },
   ],
 };
 
@@ -71,6 +91,7 @@ export default function Page() {
             <a href="#reglas">Reglas</a>
             <a href="#informe">Informe</a>
             <a href="#plataforma">Plataforma</a>
+            <a href="#preguntas">Preguntas</a>
           </nav>
           <a href="#solicitar" className="boton boton-chico boton-rojo">
             Solicitar
@@ -205,6 +226,34 @@ export default function Page() {
                 <dd>Una matriz por categoría que dice qué quedó parcial, incompleto o sin evaluar. Nunca declara cobertura total.</dd>
               </div>
             </dl>
+
+            <div className="entregable">
+              <div>
+                <h3>Así sale el informe.</h3>
+                <p>
+                  Esta es una captura del informe HTML que genera la plataforma. Baje por la página y
+                  recórralo.
+                </p>
+                <ul>
+                  {REPORT_PARTS.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+                <p className="aviso">
+                  Generado con datos de ejemplo: el dominio <code>empresa.example</code> y sus direcciones no existen.
+                </p>
+              </div>
+              <figure className="ventana" tabIndex={0} aria-label="Informe de ejemplo generado por la plataforma. Se puede desplazar.">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/media/informe-ejemplo.webp"
+                  width="980"
+                  height="2503"
+                  loading="lazy"
+                  alt="Informe de la plataforma: puntaje de postura 61 de 100, seis señales accionables, hallazgos de correo y web con su estado de verificación, inventario de activos y matriz OWASP Top 10:2025."
+                />
+              </figure>
+            </div>
           </div>
         </section>
 
@@ -244,6 +293,25 @@ export default function Page() {
                 </li>
               ))}
             </ul>
+            <div className="arranque">
+              <div>
+                <h3>Pruébela en su equipo.</h3>
+                <p>
+                  Con Docker tiene el entorno completo en una orden. Apúntela solo a activos que esté autorizado a
+                  evaluar: los módulos activos exigen un archivo de alcance.
+                </p>
+              </div>
+              <pre className="consola" tabIndex={0} aria-label="Comandos para ejecutar la plataforma">
+                <code>
+                  {RUN.map(([cmd, note]) => (
+                    <span key={cmd} className="consola-linea">
+                      <span>{cmd}</span>
+                      {note && <i># {note}</i>}
+                    </span>
+                  ))}
+                </code>
+              </pre>
+            </div>
             <div className="plataforma-pie">
               <a href={REPO_URL} className="boton boton-negro">
                 Ver el código en GitHub
@@ -256,8 +324,26 @@ export default function Page() {
           </div>
         </section>
 
+        <section id="preguntas" className="seccion" data-seccion="">
+          <Ceja n="06" name="Preguntas" side="Antes de autorizar" />
+          <div className="ancho">
+            <div className="titular">
+              <h2>Lo que conviene saber antes de autorizar.</h2>
+              <p>Las respuestas salen del alcance operativo de la plataforma, que es público.</p>
+            </div>
+            <div className="preguntas">
+              {FAQ.map((f) => (
+                <details key={f.q} name="preguntas">
+                  <summary>{f.q}</summary>
+                  <p>{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="solicitar" className="seccion" data-seccion="">
-          <Ceja n="06" name="Solicitar" side="Le respondemos por correo" />
+          <Ceja n="07" name="Solicitar" side="Le respondemos por correo" />
           <div className="ancho solicitar">
             <div>
               <h2>Solicite su evaluación.</h2>

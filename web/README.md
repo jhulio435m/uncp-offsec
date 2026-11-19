@@ -15,6 +15,14 @@ npx wrangler dev         # http://localhost:8787, sitio + /api/solicitud
 - Endpoint del formulario: `worker/index.ts`
 - Diseño: `../DESIGN.md` y `../PRODUCT.md`
 
+La captura del informe (`public/media/informe-ejemplo.webp`) sale del generador real de la plataforma con datos de ejemplo:
+
+```sh
+PYTHONPATH=src python web/scripts/sample-report.py /tmp/informe.html   # desde la raíz del repo
+```
+
+Ábrelo en el navegador, captúralo a 1280 px de ancho y recorta la cabecera.
+
 Los hallazgos de la tabla son ilustrativos y están rotulados así. La web no nombra clientes ni publica cifras, precios o certificaciones.
 
 ## Formulario

@@ -166,3 +166,51 @@ export const FINDINGS: { area: string; title: string; severity: "Alta" | "Media"
 ];
 
 export const NEEDS = ["Web y correo", "Red e infraestructura", "Código y dependencias", "Pentest manual", "Usar la plataforma en mi equipo", "No estoy seguro"];
+
+/** Comandos documentados en el README del repositorio. */
+export const RUN = [
+  ["git clone https://github.com/jhulio435m/uncp-offsec", ""],
+  ["cd uncp-offsec", ""],
+  ["docker compose build", "herramientas, listas y plantillas en versiones fijadas"],
+  ["docker compose run --rm uncp-offsec", "abre el asistente"],
+  ["docker compose run --rm uncp-offsec mail empresa.com", "solo correo, pasivo"],
+  ["docker compose run --rm uncp-offsec scan -sub portal.empresa.com", "un subdominio"],
+];
+
+/** Qué muestra el informe de ejemplo (web/scripts/sample-report.py). */
+export const REPORT_PARTS = [
+  "Puntaje de postura y nivel de riesgo",
+  "Señales accionables, las que requieren validación y los módulos incompletos",
+  "Cada hallazgo con estado, confianza, ocurrencias, evidencia y recomendación",
+  "Inventario de subdominios y servidores que responden",
+  "Métricas de cobertura de la aplicación",
+  "Matriz OWASP Top 10:2025 con sus límites",
+];
+
+/** Respuestas tomadas de docs/assessment-scope.md y del README. */
+export const FAQ = [
+  {
+    q: "¿Pueden dañar o tumbar mis sistemas?",
+    a: "La plataforma solo hace pruebas acotadas y no destructivas: no explota, no fuerza credenciales y no hace denegación de servicio. Las pruebas activas corren únicamente si el alcance firmado las autoriza.",
+  },
+  {
+    q: "¿Qué necesitan de mí para empezar?",
+    a: "La autorización por escrito y la lista de activos a evaluar. Si quiere que revisemos zonas con sesión, una cuenta de prueba de mínimo privilegio; para APIs ayuda la especificación OpenAPI; para código, el árbol de código que nos autorice a leer.",
+  },
+  {
+    q: "¿Qué recibo al final?",
+    a: "Un informe en HTML y en JSON con cada hallazgo, su evidencia, severidad, estado de verificación, confianza y una recomendación, más la cobertura alcanzada y lo que quedó sin evaluar.",
+  },
+  {
+    q: "¿El informe certifica que estoy seguro?",
+    a: "No. Dice qué se evaluó, qué se encontró y qué no se pudo evaluar. Un módulo sin hallazgos no prueba que algo sea seguro, y la matriz OWASP nunca declara cobertura total.",
+  },
+  {
+    q: "¿Y si mi sitio tiene WAF o bloquea el escaneo?",
+    a: "No lo evadimos. Si el sitio responde con bloqueos, el informe registra cobertura limitada y se lo decimos, para que usted decida cómo seguir.",
+  },
+  {
+    q: "¿Qué pasa con mis credenciales y mis datos?",
+    a: "Las credenciales de prueba no se guardan en el informe. La plataforma no extrae datos: de las respuestas solo conserva la evidencia necesaria para sustentar cada hallazgo.",
+  },
+];
