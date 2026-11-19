@@ -167,17 +167,7 @@ export const FINDINGS: { area: string; title: string; severity: "Alta" | "Media"
 
 export const NEEDS = ["Web y correo", "Red e infraestructura", "Código y dependencias", "Pentest manual", "Usar la plataforma en mi equipo", "No estoy seguro"];
 
-/** Comandos documentados en el README del repositorio. */
-export const RUN = [
-  ["git clone https://github.com/jhulio435m/uncp-offsec", ""],
-  ["cd uncp-offsec", ""],
-  ["docker compose build", "herramientas, listas y plantillas en versiones fijadas"],
-  ["docker compose run --rm uncp-offsec", "abre el asistente"],
-  ["docker compose run --rm uncp-offsec mail empresa.com", "solo correo, pasivo"],
-  ["docker compose run --rm uncp-offsec scan -sub portal.empresa.com", "un subdominio"],
-];
-
-/** Qué muestra el informe de ejemplo (web/scripts/sample-report.py). */
+/** Qué trae el informe que genera la plataforma. */
 export const REPORT_PARTS = [
   "Puntaje de postura y nivel de riesgo",
   "Señales accionables, las que requieren validación y los módulos incompletos",

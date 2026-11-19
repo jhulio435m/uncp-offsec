@@ -9,21 +9,17 @@ npm run build            # genera out/
 npx wrangler dev         # http://localhost:8787, sitio + /api/solicitud
 ```
 
-- Contenido (servicios, reglas, hallazgos de ejemplo, contacto): `src/content/site.ts`
-- Página: `src/app/page.tsx`; estilos y tokens en `src/app/globals.css`
+- Páginas (`src/app/`): inicio, `/auditoria`, `/reglas`, `/informe`, `/plataforma`, `/preguntas` y `/solicitar`. Cabecera y pie compartidos en `src/app/layout.tsx` y `src/components/site-chrome.tsx`
+- Contenido (servicios, reglas, hallazgos de ejemplo, preguntas, contacto): `src/content/site.ts`
+- Diagramas animados (registro de evaluación, cabeceras y correo, puertos, código, accesos): `src/components/visuals.tsx`; mapa de la portada: `src/components/surface-map.tsx`
+- Coreografía de scroll y barras de sección: `src/components/choreo.tsx`
 - Tabla de hallazgos: `src/components/findings.tsx`; formulario: `src/components/request-form.tsx`
 - Endpoint del formulario: `worker/index.ts`
-- Diseño: `../DESIGN.md` y `../PRODUCT.md`
+- Estilos y tokens: `src/app/globals.css`. Diseño: `../DESIGN.md` y `../PRODUCT.md`
 
-La captura del informe (`public/media/informe-ejemplo.webp`) sale del generador real de la plataforma con datos de ejemplo:
+Las rutas son archivos estáticos (`auditoria.html`, etc.): un servidor de archivos simple no las resuelve sin extensión, así que para verlas en local usa `npx wrangler dev`.
 
-```sh
-PYTHONPATH=src python web/scripts/sample-report.py /tmp/informe.html   # desde la raíz del repo
-```
-
-Ábrelo en el navegador, captúralo a 1280 px de ancho y recorta la cabecera.
-
-Los hallazgos de la tabla son ilustrativos y están rotulados así. La web no nombra clientes ni publica cifras, precios o certificaciones.
+Los hallazgos y los diagramas usan datos de ejemplo y están rotulados así. La web no nombra clientes ni publica cifras, precios o certificaciones.
 
 ## Formulario
 

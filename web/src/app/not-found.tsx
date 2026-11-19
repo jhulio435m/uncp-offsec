@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Página no encontrada", robots: { in
 
 export default function NotFound() {
   return (
-    <main className="portada ancho" id="contenido">
+    <div className="portada ancho">
       <h1>
         Aquí no hay <span className="marca-roja">nada</span>.
       </h1>
@@ -15,6 +15,6 @@ export default function NotFound() {
           Volver al inicio
         </Link>
       </p>
-    </main>
+    </div>
   );
 }

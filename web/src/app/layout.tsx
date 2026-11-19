@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/big-shoulders";
 import "@fontsource-variable/hanken-grotesk";
 import "@fontsource-variable/jetbrains-mono";
-import { DESCRIPTION, KEYWORDS, SITE_URL, TITLE } from "@/content/site";
+import { Choreo } from "@/components/choreo";
+import { Header } from "@/components/site-chrome";
+import { CONTACT, DESCRIPTION, KEYWORDS, REPO_URL, SITE_URL, TITLE } from "@/content/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,6 @@ export const metadata: Metadata = {
   authors: [{ name: "Soryntel", url: "https://soryntel.com" }],
   creator: "Soryntel",
   publisher: "Soryntel",
-  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
@@ -42,7 +43,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {/* Activa la coreografía solo si hay JavaScript: sin él, nada queda oculto. */}
         <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
-        {children}
+        <Choreo />
+        <a href="#contenido" className="saltar">
+          Saltar al contenido
+        </a>
+        <Header />
+        <main id="contenido">{children}</main>
+        <footer className="pie">
+          <div className="ancho pie-fila">
+            <a href={CONTACT.home} className="pie-soryntel">
+              Un producto de
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/soryntel.svg" alt="Soryntel" width="96" height="40" />
+            </a>
+            <nav aria-label="Enlaces del pie">
+              <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
+              <a href={REPO_URL}>GitHub</a>
+              <a href={CONTACT.instagram}>Instagram</a>
+              <a href={CONTACT.facebook}>Facebook</a>
+              <a href={CONTACT.complaints}>Libro de reclamaciones</a>
+            </nav>
+            <p>© 2026 Soryntel</p>
+          </div>
+        </footer>
       </body>
     </html>
   );

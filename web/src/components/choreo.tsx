@@ -1,16 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 /**
  * Coreografía de scroll: marca cada sección con data-in la primera vez que
- * entra en pantalla. El CSS hace el resto (línea que se traza, barra de sección
- * y contenido escalonado). Sin JavaScript o con movimiento reducido, todo el
- * contenido está visible desde el inicio.
+ * entra en pantalla, en cada página. El CSS hace el resto (línea que se traza,
+ * barra de sección y contenido escalonado). Sin JavaScript o con movimiento
+ * reducido, todo el contenido está visible desde el inicio.
  */
 export function Choreo() {
+  const path = usePathname();
   useEffect(() => {
-    const sections = document.querySelectorAll<HTMLElement>("[data-seccion]");
+    const sections = document.querySelectorAll<HTMLElement>("[data-seccion]:not([data-in])");
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
       sections.forEach((s) => s.setAttribute("data-in", ""));
       return;
@@ -27,7 +29,7 @@ export function Choreo() {
     );
     sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
-  }, []);
+  }, [path]);
   return null;
 }
 

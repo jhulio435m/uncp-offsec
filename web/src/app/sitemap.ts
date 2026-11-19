@@ -3,6 +3,8 @@ import { SITE_URL } from "@/content/site";
 
 export const dynamic = "force-static";
 
+const PAGES = ["", "auditoria", "reglas", "informe", "plataforma", "preguntas", "solicitar"];
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [{ url: `${SITE_URL}/`, changeFrequency: "monthly", priority: 1 }];
+  return PAGES.map((p) => ({ url: `${SITE_URL}/${p}`, changeFrequency: "monthly", priority: p ? 0.8 : 1 }));
 }
