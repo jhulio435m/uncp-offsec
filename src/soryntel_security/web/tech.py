@@ -91,7 +91,7 @@ def run(hosts: list[HostInfo], *, timeout: float = 90.0) -> ModuleResult:
         )
         return result
 
-    with temporary_output(prefix="uncp_offsec_whatweb_", suffix=".json") as outfile:
+    with temporary_output(prefix="soryntel_security_whatweb_", suffix=".json") as outfile:
         result_tool = run_tool([path, "-q", "--log-json", outfile, *targets], timeout=timeout)
         parsed_text = Path(outfile).read_text(errors="replace") if Path(outfile).exists() else ""
     if not result_tool.ok:

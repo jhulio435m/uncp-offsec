@@ -1,11 +1,11 @@
-"""UncP OffSec - unified offensive-surface assessment orchestration.
+"""Soryntel Security - unified offensive-surface assessment orchestration.
 
 Wraps the MailSec email tool plus a pipeline of battle-tested web recon tools
 (subfinder, gau, httpx, whatweb, naabu, testssl.sh, nuclei) and produces a
 single scored, browsable report.
 """
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 
 from mailsec.models import Severity
 

@@ -1,4 +1,4 @@
-from uncp_offsec.compare import build
+from soryntel_security.compare import build
 
 
 def test_compare_reports_assets_and_cves():

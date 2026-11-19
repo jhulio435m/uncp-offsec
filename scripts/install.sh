@@ -10,4 +10,4 @@ fi
 python3 -m pip install --user --upgrade pipx
 python3 -m pipx ensurepath
 python3 -m pipx install --force .
-echo "Installed. Open a new shell, then run: uncp_offsec doctor"
+echo "Installed. Open a new shell, then run: soryntel-security doctor"

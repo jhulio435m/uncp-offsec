@@ -1,16 +1,16 @@
 """Tests for the external-tool JSON parsers used by the web phase."""
 
-from uncp_offsec.models import HostInfo
-from uncp_offsec.web.content import wordlist_tuning
-from uncp_offsec.web.cves import _CPE, _group_matches, _rows
-from uncp_offsec.web.discovery import parse_output as parse_subfinder
-from uncp_offsec.web.headers import _parse as parse_headers
-from uncp_offsec.web.headers import _weak_csp
-from uncp_offsec.web.ports import parse_naabu_json
-from uncp_offsec.web.probe import parse_httpx_json
-from uncp_offsec.web.tech import parse_whatweb_json
-from uncp_offsec.web.tls import parse_testssl_json
-from uncp_offsec.web.vulns import parse_nuclei_json
+from soryntel_security.models import HostInfo
+from soryntel_security.web.content import wordlist_tuning
+from soryntel_security.web.cves import _CPE, _group_matches, _rows
+from soryntel_security.web.discovery import parse_output as parse_subfinder
+from soryntel_security.web.headers import _parse as parse_headers
+from soryntel_security.web.headers import _weak_csp
+from soryntel_security.web.ports import parse_naabu_json
+from soryntel_security.web.probe import parse_httpx_json
+from soryntel_security.web.tech import parse_whatweb_json
+from soryntel_security.web.tls import parse_testssl_json
+from soryntel_security.web.vulns import parse_nuclei_json
 
 
 def test_subfinder_parse_dedupes_and_sorts():

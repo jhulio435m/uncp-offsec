@@ -1,6 +1,6 @@
 import subprocess
 
-from uncp_offsec.web import tools
+from soryntel_security.web import tools
 
 
 def test_timeout_retains_partial_tool_output(monkeypatch):

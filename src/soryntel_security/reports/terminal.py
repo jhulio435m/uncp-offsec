@@ -148,7 +148,7 @@ def render_web(result: WebScanResult) -> None:
 def render_combined(combined: CombinedScanResult) -> None:
     """Render the full combined report to the terminal."""
     console.print()
-    console.rule(f"[bold]UNCP OFFSEC - {combined.domain}[/bold]")
+    console.rule(f"[bold]SORYNTEL SECURITY - {combined.domain}[/bold]")
     console.print(f"  [dim]Scan time: {combined.timestamp}[/dim]")
     console.print(f"  [dim]Assessment mode: {combined.assessment_mode}[/dim]")
     if combined.elapsed_seconds:

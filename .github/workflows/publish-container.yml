@@ -67,7 +67,7 @@ jobs:
           file: ./Containerfile
           platforms: linux/amd64
           load: true
-          tags: uncp-offsec:0.3.3
+          tags: soryntel-security:0.4.0
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -75,7 +75,7 @@ jobs:
         run: |
           trap 'docker compose down' EXIT
           docker compose up -d --wait zap
-          docker compose run --rm uncp-offsec doctor --full
+          docker compose run --rm soryntel-security doctor --full
 
       - name: Build and publish image
         uses: docker/build-push-action@v6

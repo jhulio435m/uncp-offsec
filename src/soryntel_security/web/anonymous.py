@@ -56,11 +56,11 @@ def _is_static(url: str) -> bool:
 
 
 def _request(url: str, method: str, *, timeout: float = 10.0, origin: bool = False) -> dict:
-    headers = {"User-Agent": "uncp-offsec/0.2 anonymous-assessment", "Accept": "*/*"}
+    headers = {"User-Agent": "soryntel-security/0.4 anonymous-assessment", "Accept": "*/*"}
     if method == "GET":
         headers["Range"] = "bytes=0-4095"
     if origin:
-        headers["Origin"] = "https://uncp-offsec.invalid"
+        headers["Origin"] = "https://soryntel-security.invalid"
         headers["Access-Control-Request-Method"] = "GET"
     handlers = [_NoRedirect]
     parsed = urlparse(url)
@@ -181,7 +181,7 @@ def run(
             unsafe_advertised.append(f"{url}: {', '.join(sorted(announced & UNSAFE_METHODS))}")
         acao = str(options["headers"].get("Access-Control-Allow-Origin", options["headers"].get("access-control-allow-origin", "")))
         acac = str(options["headers"].get("Access-Control-Allow-Credentials", options["headers"].get("access-control-allow-credentials", ""))).lower()
-        if acao == "https://uncp-offsec.invalid" or (acao == "*" and acac == "true"):
+        if acao == "https://soryntel-security.invalid" or (acao == "*" and acac == "true"):
             cors_issues.append(url)
         cache_control = str(get["headers"].get("Cache-Control", get["headers"].get("cache-control", ""))).lower()
         if status in (200, 206) and SENSITIVE_RE.search(path) and not any(token in cache_control for token in ("no-store", "private")):

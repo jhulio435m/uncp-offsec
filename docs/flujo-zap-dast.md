@@ -1,11 +1,11 @@
-# Flujo completo de `uncp_offsec scan -sub`
+# Flujo completo de `soryntel-security scan -sub`
 
 El diagrama contiene el recorrido completo de la suite para un subdominio exacto.
 ZAP DAST es una etapa del flujo, no el flujo completo.
 
 ```mermaid
 flowchart TD
-    A["COMANDO<br/><code>uncp_offsec scan -sub subdominio.ejemplo.edu.pe</code>"] --> B["PREPARACIÓN AUTOMÁTICA<br/>exact-host · perfil active-validation · sin correo<br/>HTML de salida · caché CVE · wordlist aprobada"]
+    A["COMANDO<br/><code>soryntel-security scan -sub subdominio.ejemplo.edu.pe</code>"] --> B["PREPARACIÓN AUTOMÁTICA<br/>exact-host · perfil active-validation · sin correo<br/>HTML de salida · caché CVE · wordlist aprobada"]
 
     B --> C{"ALCANCE OBLIGATORIO<br/>¿El host está en domains y allow_active=true?"}
     C -- "No" --> STOP["DETENER ANTES DE PROBAR<br/>No se envían pruebas fuera del alcance"]

@@ -41,7 +41,7 @@ def _write(path: Path, data: dict) -> None:
 
 
 def _fetch(url: str, key: str = "") -> dict:
-    headers = {"User-Agent": "uncp-offsec/0.2 CVE-enrichment"}
+    headers = {"User-Agent": "soryntel-security/0.4 CVE-enrichment"}
     if key:
         headers["apiKey"] = key
     with urlopen(Request(url, headers=headers), timeout=20) as response:

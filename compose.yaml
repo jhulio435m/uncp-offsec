@@ -1,9 +1,9 @@
 services:
-  uncp-offsec:
+  soryntel-security:
     build:
       context: .
       dockerfile: Containerfile
-    image: uncp-offsec:0.3.3
+    image: soryntel-security:0.4.0
     # Reports stay owned by the caller on Linux and are available on Windows.
     user: "${UNCP_UID:-1000}:${UNCP_GID:-1000}"
     environment:
@@ -19,7 +19,7 @@ services:
       - ./:/work:ro
       - ./reports:/reports
     working_dir: /work
-    entrypoint: ["uncp_offsec"]
+    entrypoint: ["soryntel-security"]
     depends_on:
       zap:
         condition: service_healthy

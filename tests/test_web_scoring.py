@@ -1,5 +1,5 @@
 from mailsec.models import Finding, ModuleResult, Severity
-from uncp_offsec.web.scoring import _worst, compute_coverage, compute_web_score
+from soryntel_security.web.scoring import _worst, compute_coverage, compute_web_score
 
 
 def _module(name: str, *severities: Severity, assessed: bool = True) -> ModuleResult:

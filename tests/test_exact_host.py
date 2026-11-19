@@ -4,10 +4,10 @@ from types import SimpleNamespace
 from click.testing import CliRunner
 
 from mailsec.models import ModuleResult
-from uncp_offsec import scanner
-from uncp_offsec.cli import cli
-from uncp_offsec.models import HostInfo
-from uncp_offsec.web import content
+from soryntel_security import scanner
+from soryntel_security.cli import cli
+from soryntel_security.models import HostInfo
+from soryntel_security.web import content
 
 
 def test_exact_host_skips_discovery_and_limits_probe(monkeypatch):
@@ -47,9 +47,9 @@ def test_sub_preset_selects_scope_and_complete_authorized_bundle(monkeypatch, tm
             target_mode="", comparison=None,
         )
 
-    monkeypatch.setattr("uncp_offsec.cli.run_combined", fake_run)
-    monkeypatch.setattr("uncp_offsec.cli.combined_terminal.render_combined", lambda _result: None)
-    monkeypatch.setattr("uncp_offsec.cli.combined_html.write", lambda _result, path: writes.append(path))
+    monkeypatch.setattr("soryntel_security.cli.run_combined", fake_run)
+    monkeypatch.setattr("soryntel_security.cli.combined_terminal.render_combined", lambda _result: None)
+    monkeypatch.setattr("soryntel_security.cli.combined_html.write", lambda _result, path: writes.append(path))
 
     monkeypatch.chdir(tmp_path)
     Path("scope.uncp.json").write_text(
@@ -82,14 +82,14 @@ def test_sub_preset_selects_scope_and_complete_authorized_bundle(monkeypatch, tm
 def test_sub_preset_writes_report_only_with_output(monkeypatch, tmp_path):
     writes: list[Path] = []
     monkeypatch.setattr(
-        "uncp_offsec.cli.run_combined",
+        "soryntel_security.cli.run_combined",
         lambda *_args, **_kwargs: SimpleNamespace(
             scan_profile="", scope_name="", assessment_mode="",
             elapsed_seconds=0.0, target_mode="", comparison=None,
         ),
     )
-    monkeypatch.setattr("uncp_offsec.cli.combined_terminal.render_combined", lambda _result: None)
-    monkeypatch.setattr("uncp_offsec.cli.combined_html.write", lambda _result, path: writes.append(path))
+    monkeypatch.setattr("soryntel_security.cli.combined_terminal.render_combined", lambda _result: None)
+    monkeypatch.setattr("soryntel_security.cli.combined_html.write", lambda _result, path: writes.append(path))
     monkeypatch.chdir(tmp_path)
     Path("scope.uncp.json").write_text(
         '{"domains":["uncp.edu.pe"],"allow_active":true}', encoding="utf-8",

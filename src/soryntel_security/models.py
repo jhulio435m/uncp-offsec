@@ -1,4 +1,4 @@
-"""Models for the unified UnCP OffSec scan (web phase + combined result)."""
+"""Models for the unified Soryntel Security scan (web phase + combined result)."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ class CombinedScanResult:
         return {
             "domain": self.domain,
             "timestamp": self.timestamp,
-            "tool": "uncp_offsec",
+            "tool": "soryntel-security",
             "tool_version": self.tool_version,
             "overall": {
                 "total": round(self.overall_score, 1),

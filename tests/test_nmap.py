@@ -1,7 +1,7 @@
 from mailsec.models import Finding, ModuleResult, Severity
-from uncp_offsec.web.nmap import IDENTIFICATION_ONLY_VULN_SCRIPTS, _script_severity, parse_xml
-from uncp_offsec.web.ports import reconcile_services
-from uncp_offsec.web.tls import reconcile_nmap
+from soryntel_security.web.nmap import IDENTIFICATION_ONLY_VULN_SCRIPTS, _script_severity, parse_xml
+from soryntel_security.web.ports import reconcile_services
+from soryntel_security.web.tls import reconcile_nmap
 
 
 def test_parse_nmap_xml_open_service():

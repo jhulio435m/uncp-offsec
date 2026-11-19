@@ -1,5 +1,5 @@
 from mailsec.models import Severity
-from uncp_offsec.web.zap import alert_severity, parse_alerts
+from soryntel_security.web.zap import alert_severity, parse_alerts
 
 
 def test_zap_alert_retains_reproducible_evidence_and_cwe():

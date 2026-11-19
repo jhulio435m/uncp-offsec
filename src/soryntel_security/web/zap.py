@@ -186,7 +186,7 @@ def _configure_headers(base: str, target: str, headers: dict[str, str]) -> list[
     descriptions = []
     target_id = hashlib.sha256(target.encode()).hexdigest()[:10]
     for index, (name, value) in enumerate(headers.items()):
-        description = f"uncp-auth-{target_id}-{index}"
+        description = f"ssec-auth-{target_id}-{index}"
         _api(base, "/JSON/replacer/action/addRule/", {
             "description": description, "enabled": "true", "matchType": "REQ_HEADER",
             "matchRegex": "false", "matchString": name, "replacement": value,

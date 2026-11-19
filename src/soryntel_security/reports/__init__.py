@@ -1,4 +1,4 @@
-"""Combined report writers for UnCP OffSec."""
+"""Combined report writers for Soryntel Security."""
 
 from . import html, json, terminal
 

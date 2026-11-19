@@ -36,7 +36,7 @@ def crawl(
         result.assessed = False
         result.findings.append(Finding(module="crawl", severity=Severity.INFO, title="Katana unavailable or no live hosts", detail="", recommendation=""))
         return result, []
-    with temporary_list([host.url for host in hosts[:20]], prefix="uncp_offsec_katana_") as targets:
+    with temporary_list([host.url for host in hosts[:20]], prefix="soryntel_security_katana_") as targets:
         cmd = [path, "-list", targets, "-silent", "-d", "2", "-c", "5", "-rl", "5", "-jc", "-kf", "all"]
         for name, value in (headers or {}).items():
             cmd.extend(["-H", f"{name}: {value}"])
@@ -91,7 +91,7 @@ def directories(
     completed = 0
     entries, rate, threads, estimated_seconds = wordlist_tuning(wordlist)
     for host in hosts[:10]:
-        with temporary_output(prefix="uncp_offsec_ffuf_", suffix=".json") as output:
+        with temporary_output(prefix="soryntel_security_ffuf_", suffix=".json") as output:
             cmd = [path, "-u", f"{host.url.rstrip('/')}/FUZZ", "-w", str(wordlist), "-mc", "200,204,301,302,307,308,401,403", "-ac", "-rate", str(rate), "-t", str(threads), "-s", "-of", "json", "-o", output]
             for name, value in (headers or {}).items():
                 cmd.extend(["-H", f"{name}: {value}"])

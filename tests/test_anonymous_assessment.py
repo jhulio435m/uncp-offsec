@@ -1,6 +1,6 @@
 from mailsec.models import Finding, ModuleResult, Severity
-from uncp_offsec.web import anonymous
-from uncp_offsec.web.correlation import run as correlate
+from soryntel_security.web import anonymous
+from soryntel_security.web.correlation import run as correlate
 
 
 def test_classify_counts_auth_api_parameters_and_identifiers():

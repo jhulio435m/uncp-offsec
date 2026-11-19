@@ -91,7 +91,7 @@ def run(
         )
         return result
 
-    with temporary_list([h.url for h in hosts], prefix="uncp_offsec_nuclei_") as tmp:
+    with temporary_list([h.url for h in hosts], prefix="soryntel_security_nuclei_") as tmp:
         cmd = [
             path,
             "-l",

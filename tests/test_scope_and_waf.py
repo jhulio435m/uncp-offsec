@@ -4,11 +4,11 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from uncp_offsec.cli import cli
-from uncp_offsec.models import HostInfo
-from uncp_offsec.scope import allows, load
-from uncp_offsec.web import ports, probe
-from uncp_offsec.web.sqli import is_positive_detection, request_metadata
+from soryntel_security.cli import cli
+from soryntel_security.models import HostInfo
+from soryntel_security.scope import allows, load
+from soryntel_security.web import ports, probe
+from soryntel_security.web.sqli import is_positive_detection, request_metadata
 
 
 def test_scope_allows_domain_and_subdomain(tmp_path: Path):

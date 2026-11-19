@@ -3,9 +3,9 @@ import json
 import pytest
 
 from mailsec.models import Finding, ModuleResult, Severity
-from uncp_offsec.web.auth import load_headers
-from uncp_offsec.web.owasp import coverage
-from uncp_offsec.web.zap import parse_alerts
+from soryntel_security.web.auth import load_headers
+from soryntel_security.web.owasp import coverage
+from soryntel_security.web.zap import parse_alerts
 
 
 def test_auth_headers_reject_host_and_newlines(tmp_path):

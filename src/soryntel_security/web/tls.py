@@ -166,7 +166,7 @@ def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Find
     findings: list[Finding] = []
     protocols: list[str] = []
     badge = f"[{host}] "
-    with temporary_output(prefix="uncp_offsec_testssl_", suffix=".json") as outfile:
+    with temporary_output(prefix="soryntel_security_testssl_", suffix=".json") as outfile:
         tool = run(
             [
                 "testssl.sh", "--quiet", "--fast", "--jsonfile-pretty", outfile,

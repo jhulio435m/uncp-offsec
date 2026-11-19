@@ -1,4 +1,4 @@
-from uncp_offsec.reports.html import render
+from soryntel_security.reports.html import render
 
 
 def test_combined_html_includes_informational_evidence():
@@ -28,7 +28,7 @@ def test_combined_html_includes_informational_evidence():
 
     html = render(payload)
 
-    assert "All observations and findings" in html
+    assert "Observaciones y hallazgos" in html
     assert "Nmap identified 1 open service(s)" in html
     assert "192.0.2.10:80 http nginx" in html
 
@@ -57,10 +57,10 @@ def test_html_shows_triage_and_owasp_limitations():
         },
     }
     html = render(payload)
-    assert "OWASP Top 10:2025 coverage" in html
+    assert "Cobertura OWASP Top 10:2025" in html
     assert "Broken Access Control" in html
-    assert "Status: POTENTIAL" in html
-    assert "Occurrences: 2" in html
+    assert "Estado: Potencial (POTENTIAL)" in html
+    assert "Ocurrencias: 2" in html
 
 
 def test_exact_host_web_report_uses_coherent_scope_and_coverage_labels():
@@ -86,10 +86,10 @@ def test_exact_host_web_report_uses_coherent_scope_and_coverage_labels():
 
     html = render(payload)
 
-    assert "Exact-host web assessment" in html
-    assert "WEB POSTURE SCORE" in html
-    assert "Email security" not in html
-    assert "Discovered subdomains (0)" not in html
-    assert "Subdomain discovery was intentionally not performed" in html
-    assert "Coverage limitation:" in html
+    assert "Evaluación web de un host exacto" in html
+    assert "Postura web" in html
+    assert "Seguridad del correo" not in html
+    assert "Subdominios descubiertos (0)" not in html
+    assert "No se buscaron subdominios, a propósito" in html
+    assert "Límite de cobertura:" in html
     assert "INCOMPLETE" in html

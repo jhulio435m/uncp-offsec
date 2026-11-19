@@ -1,6 +1,6 @@
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://security.soryntel.com";
 export const REPO_URL = "https://github.com/jhulio435m/uncp-offsec";
-export const PLATFORM_VERSION = "0.3.3";
+export const PLATFORM_VERSION = "0.4.0";
 
 export const TITLE = "Soryntel Security · Auditoría y plataforma de evaluación de seguridad";
 export const DESCRIPTION =

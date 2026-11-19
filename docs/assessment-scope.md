@@ -1,6 +1,6 @@
 # Alcance operativo: identificación y validación activa
 
-UnCP OffSec es un escáner defensivo para activos con autorización explícita. Su
+Soryntel Security es un escáner defensivo para activos con autorización explícita. Su
 objetivo es encontrar antes que un atacante la superficie expuesta, indicios de
 configuración insegura y vulnerabilidades probables o verificables mediante
 pruebas acotadas y no destructivas.

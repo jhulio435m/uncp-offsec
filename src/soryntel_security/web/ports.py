@@ -112,7 +112,7 @@ def run(
     aliases: dict[str, set[str]] = {}
     for host in hosts:
         aliases.setdefault(host.ip or host.host, set()).add(host.host)
-    with temporary_list(targets, prefix="uncp_offsec_naabu_") as tmp:
+    with temporary_list(targets, prefix="soryntel_security_naabu_") as tmp:
         cmd = [
             path, "-l", tmp, "-top-ports", str(top_ports),
             "-s", "c", "-Pn", "-ec", "-duc",

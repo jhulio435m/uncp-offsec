@@ -111,5 +111,5 @@ RUN pip install --no-deps .
 COPY config/scopes/scope.uncp.json /opt/uncp-tools/scopes/scope.uncp.json
 
 USER uncp
-ENTRYPOINT ["uncp_offsec"]
+ENTRYPOINT ["soryntel-security"]
 CMD ["--help"]

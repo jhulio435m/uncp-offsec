@@ -102,7 +102,7 @@ def sca(source: Path) -> ModuleResult:
     pip_audit = which("pip-audit")
     rows: list[dict] = []
     if trivy:
-        cache_dir = os.environ.get("TRIVY_CACHE_DIR", "/tmp/uncp-trivy-cache")
+        cache_dir = os.environ.get("TRIVY_CACHE_DIR", "/tmp/soryntel-security-trivy-cache")
         tool = run_tool([trivy, "fs", "--cache-dir", cache_dir, "--format", "json", "--scanners", "vuln", "--quiet", str(source)], timeout=600)
         try:
             payload = json.loads(tool.stdout or "{}")

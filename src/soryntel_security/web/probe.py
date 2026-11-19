@@ -130,7 +130,7 @@ def run(
 
     targets = sorted({domain, *subdomains})
 
-    with temporary_list(targets, prefix="uncp_offsec_httpx_") as tmp:
+    with temporary_list(targets, prefix="soryntel_security_httpx_") as tmp:
         cmd = [
             path, "-l", tmp, "-silent", "-status-code", "-title", "-tech-detect",
             "-follow-redirects", "-max-redirects", "5", "-unsafe", "-json",

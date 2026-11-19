@@ -56,7 +56,7 @@ Sin decidir: precios, plazos, certificaciones y forma de contratación. No deben
 
 - `docs/assessment-scope.md`: incluido y excluido.
 - `docs/flujo-zap-dast.md` y `README.md`: flujo, perfiles, estados de verificación (`VALIDATED_NON_DESTRUCTIVE`, `POTENTIAL`, `MANUAL_REQUIRED`), puntuación separada de cobertura y confianza.
-- Repositorio público `jhulio435m/uncp-offsec`, versión 0.3.3.
+- Repositorio público `jhulio435m/uncp-offsec` (pendiente de renombrar), versión 0.4.0. El comando es `soryntel-security`; `uncp_offsec` queda como alias.
 - No hay clientes nombrables, testimonios, cifras, certificaciones ni informes publicables: no se inventan. Cualquier extracto de informe en la web es ilustrativo y va rotulado.
 
 ## Product Principles

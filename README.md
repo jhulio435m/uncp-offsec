@@ -1,6 +1,6 @@
-# UnCP OffSec
+# Soryntel Security
 
-Versión actual: **0.3.3**.
+Versión actual: **0.4.0**.
 
 Herramienta de evaluación de superficie web y correo para dominios autorizados.
 Combina los controles MailSec (SPF, DKIM, DMARC, SMTP, STARTTLS, MTA-STS, DANE)
@@ -19,12 +19,22 @@ El recorrido integral de `scan -sub`, incluyendo descubrimiento, red, ZAP,
 correlación y reporte, está en
 [`docs/flujo-zap-dast.md`](docs/flujo-zap-dast.md).
 
+## Nombre y comando
+
+El producto se llama **Soryntel Security** desde la versión 0.4.0 (antes UnCP OffSec).
+El comando es `soryntel-security`; `uncp_offsec` sigue funcionando como alias. En
+Docker Compose el servicio pasó a llamarse `soryntel-security`.
+
+El informe HTML sale en español y con la marca. Los títulos y el detalle de cada
+hallazgo los escribe el módulo que lo produce y, por ahora, siguen en inglés; el
+informe JSON conserva los códigos originales de severidad y estado.
+
 ## Estructura del proyecto
 
 - `config/scopes/`: alcances de autorización versionados y plantilla para otros dominios.
 - `config/examples/`: ejemplos de configuración sin credenciales.
 - `docs/`: alcance operativo, flujo técnico y documentación histórica.
-- `src/`: implementación instalable de MailSec y UnCP OffSec.
+- `src/`: implementación instalable de MailSec y Soryntel Security.
 - `tests/`: pruebas automatizadas.
 - `reports/`: resultados y cachés locales ignorados por Git; los reportes UNCP
   conservados se agrupan en `reports/uncp/`.
@@ -37,10 +47,10 @@ correlación y reporte, está en
 Los cuatro accesos principales son:
 
 ```bash
-uncp_offsec                         # asistente interactivo
-uncp_offsec scan uncp.edu.pe       # dominio completo
-uncp_offsec scan -sub erpcampus.uncp.edu.pe
-uncp_offsec mail uncp.edu.pe       # solamente seguridad de correo
+soryntel-security                         # asistente interactivo
+soryntel-security scan uncp.edu.pe       # dominio completo
+soryntel-security scan -sub erpcampus.uncp.edu.pe
+soryntel-security mail uncp.edu.pe       # solamente seguridad de correo
 ```
 
 El asistente permite elegir dominio, subdominio, correo o análisis de un archivo
@@ -70,8 +80,8 @@ El asistente acepta nombres como `soryntel.com`; rechaza URLs, protocolos y ruta
 instaladas en el equipo:
 
 ```bash
-.venv/bin/uncp_offsec scan uncp.edu.pe
-.venv/bin/uncp_offsec scan -sub erpcampus.uncp.edu.pe
+.venv/bin/soryntel-security scan uncp.edu.pe
+.venv/bin/soryntel-security scan -sub erpcampus.uncp.edu.pe
 ```
 
 El directorio `.venv` contiene Python y las dependencias del proyecto. No debe
@@ -87,10 +97,10 @@ ZAP:
 
 ```bash
 docker compose build
-docker compose run --rm uncp-offsec scan uncp.edu.pe
-docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
-docker compose run --rm uncp-offsec mail uncp.edu.pe
-docker compose run --rm uncp-offsec
+docker compose run --rm soryntel-security scan uncp.edu.pe
+docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe
+docker compose run --rm soryntel-security mail uncp.edu.pe
+docker compose run --rm soryntel-security
 ```
 
 El último comando abre el asistente dentro del contenedor. Docker Compose conserva
@@ -100,7 +110,7 @@ En ambos modos el resultado se muestra en la terminal. Añade `-o` únicamente s
 deseas guardar un reporte. En Docker, usa una ruta bajo `/reports`:
 
 ```bash
-docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe \
+docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe \
   -o /reports/erpcampus.uncp.edu.pe.html
 ```
 
@@ -115,14 +125,14 @@ El CLI nativo sirve para informes, análisis `.eml` y controles de correo. En Li
 
 ```bash
 ./scripts/install.sh
-uncp_offsec doctor
+soryntel-security doctor
 ```
 
 En Windows PowerShell, con Python 3.10 o posterior en `PATH`:
 
 ```powershell
 .\scripts\install.ps1
-uncp_offsec doctor
+soryntel-security doctor
 ```
 
 Los scripts instalan el proyecto con `pipx`, sin requerir privilegios de administrador.
@@ -146,9 +156,9 @@ git clone https://github.com/jhulio435m/uncp-offsec.git
 cd uncp-offsec
 mkdir -p reports
 docker compose build
-docker compose run --rm uncp-offsec doctor --full
-docker compose run --rm uncp-offsec scan uncp.edu.pe
-docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
+docker compose run --rm soryntel-security doctor --full
+docker compose run --rm soryntel-security scan uncp.edu.pe
+docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe
 ```
 
 Si el repositorio es privado, autentica Git previamente con GitHub CLI o una
@@ -164,15 +174,15 @@ autentica Docker y usa el archivo Compose complementario para evitar la compilac
 
 ```bash
 gh auth token | docker login ghcr.io -u jhulio435m --password-stdin
-docker compose -f compose.yaml -f compose.prebuilt.yaml pull uncp-offsec
-docker compose -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
+docker compose -f compose.yaml -f compose.prebuilt.yaml pull soryntel-security
+docker compose -f compose.yaml -f compose.prebuilt.yaml run --rm soryntel-security doctor
 ```
 
 Para fijar una versión concreta:
 
 ```bash
 UNCP_OFFSEC_VERSION=0.3.3 docker compose \
-  -f compose.yaml -f compose.prebuilt.yaml run --rm uncp-offsec doctor
+  -f compose.yaml -f compose.prebuilt.yaml run --rm soryntel-security doctor
 ```
 
 En Linux con Podman y el complemento Compose:
@@ -180,8 +190,8 @@ En Linux con Podman y el complemento Compose:
 ```bash
 mkdir -p reports
 podman compose build
-podman compose run --rm uncp-offsec doctor
-podman compose run --rm uncp-offsec scan ejemplo.com -o /reports/ejemplo.json
+podman compose run --rm soryntel-security doctor
+podman compose run --rm soryntel-security scan ejemplo.com -o /reports/ejemplo.json
 ```
 
 En Windows, instala Docker Desktop con backend WSL 2 y ejecuta los mismos comandos
@@ -197,27 +207,27 @@ herramientas externas. Un futuro `.exe` puede ser un lanzador del contenedor.
 
 ```bash
 # Correo y web: descubre y sondea hosts HTTP(S).
-uncp_offsec scan empresa.com
+soryntel-security scan empresa.com
 
 # Agrega SMTP relay, puertos y Nuclei.
-uncp_offsec scan empresa.com --active
+soryntel-security scan empresa.com --active
 
 # Ejecuta solo correo o solo web.
-uncp_offsec scan empresa.com --no-web
-uncp_offsec scan empresa.com --no-email
+soryntel-security scan empresa.com --no-web
+soryntel-security scan empresa.com --no-email
 
 # Concentra toda la fase web en un host exacto y omite Subfinder.
-uncp_offsec scan portal.empresa.com --exact-host --no-email
+soryntel-security scan portal.empresa.com --exact-host --no-email
 
 # Atajo: suite externa completa autorizada sobre un único subdominio.
-uncp_offsec scan -sub portal.empresa.com
+soryntel-security scan -sub portal.empresa.com
 
 # Usa los resolvedores de la organización cuando sea necesario.
-uncp_offsec scan empresa.com --resolvers 10.0.0.53,10.0.0.54
+soryntel-security scan empresa.com --resolvers 10.0.0.53,10.0.0.54
 
 # Análisis forense y conversión de informe.
-uncp_offsec analyze phishing.eml
-uncp_offsec report report.json report.html
+soryntel-security analyze phishing.eml
+soryntel-security report report.json report.html
 ```
 
 `doctor` verifica los binarios nativos y Docker/Podman sin contactar un objetivo.
@@ -255,8 +265,8 @@ Para UNCP no necesitas escribir el perfil, el scope ni la lista de módulos. Usa
 directamente el atajo y añade `-o` solo si deseas guardar el reporte:
 
 ```bash
-docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe
-docker compose run --rm uncp-offsec scan -sub erpcampus.uncp.edu.pe \
+docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe
+docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe \
   -o /reports/erpcampus.uncp.edu.pe.html
 ```
 
@@ -281,10 +291,10 @@ indicadores y queda advertido en el reporte, pero no reemplaza el nivel de riesg
 por `INCONCLUSIVE`. Esa etiqueta se reserva para una ejecución sin fases evaluables.
 
 En Compose, ZAP es un contenedor compañero fijado por versión. Se inicia y espera
-automáticamente al ejecutar `uncp-offsec`; su API no se publica hacia el host.
+automáticamente al ejecutar `soryntel-security`; su API no se publica hacia el host.
 
 ```bash
-uncp_offsec scan -sub www.uncp.edu.pe
+soryntel-security scan -sub www.uncp.edu.pe
 ```
 
 El CLI busca un único `scope*.json` local que autorice el host. Si no existe o hay
@@ -292,15 +302,15 @@ más de uno con igual especificidad, exige `--scope FILE`. Sin `-o`, el resultad
 solo se muestra en la terminal. Para guardar un informe, indícalo expresamente:
 
 ```bash
-uncp_offsec scan -sub www.uncp.edu.pe -o reports/www.uncp.edu.pe.html
+soryntel-security scan -sub www.uncp.edu.pe -o reports/www.uncp.edu.pe.html
 ```
 
 Dentro de Compose también basta el comando corto; el alcance UNCP ya está
 empaquetado y el directorio actual se monta en `/work`:
 
 ```bash
-docker compose run --rm uncp-offsec scan -sub www.uncp.edu.pe
-docker compose run --rm uncp-offsec scan -sub www.uncp.edu.pe \
+docker compose run --rm soryntel-security scan -sub www.uncp.edu.pe
+docker compose run --rm soryntel-security scan -sub www.uncp.edu.pe \
   -o /reports/www.uncp.edu.pe.html
 ```
 
@@ -315,7 +325,7 @@ configuración manual solo es necesaria para una organización distinta de UNCP:
 ```bash
 cp config/scopes/scope.example.json config/scopes/scope.local.json
 # Edita domains y confirma allow_active: true solo para una prueba aprobada.
-docker compose run --rm uncp-offsec scan ejemplo.com \
+docker compose run --rm soryntel-security scan ejemplo.com \
   --profile active-authorized --scope /work/config/scopes/scope.local.json \
   -o /reports/ejemplo.html --format html
 ```
@@ -323,7 +333,7 @@ docker compose run --rm uncp-offsec scan ejemplo.com \
 Para resaltar cambios desde un informe JSON anterior, añade `--compare`:
 
 ```bash
-uncp_offsec scan ejemplo.com --compare reports/anterior.json -o reports/nuevo.html --format html
+soryntel-security scan ejemplo.com --compare reports/anterior.json -o reports/nuevo.html --format html
 ```
 
 Nmap puede ejecutar una lista cerrada de NSE de identificación/TLS con
@@ -351,7 +361,7 @@ módulos y configuración en el servidor. Usa NVD y marca las CVE presentes en C
 KEV. La caché es obligatoria:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --cves \
+docker compose run --rm soryntel-security scan ejemplo.com --cves \
   --cve-cache /reports/.cve-cache -o /reports/ejemplo.html --format html
 ```
 
@@ -361,7 +371,7 @@ ejecutar el contenedor; la clave no se incluye en el informe ni en archivos del 
 Para añadir DNS estructurado y cabeceras de seguridad al inventario:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --dns-inventory --headers \
+docker compose run --rm soryntel-security scan ejemplo.com --dns-inventory --headers \
   -o /reports/ejemplo.html --format html
 ```
 
@@ -371,7 +381,7 @@ perfil estándar; el atajo `-sub` los configura automáticamente y elimina su
 deadline externo:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --profile active-authorized \
+docker compose run --rm soryntel-security scan ejemplo.com --profile active-authorized \
   --scope /work/config/scopes/scope.local.json --crawl --content-discovery \
   --wordlist /opt/uncp-tools/wordlists/raft-medium-directories.txt \
   -o /reports/ejemplo.html --format html
@@ -388,7 +398,7 @@ alcance establezca `allow_sqli_detection: true`; también respeta `sqli_max_targ
 y `exclude_paths`:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --profile active-authorized \
+docker compose run --rm soryntel-security scan ejemplo.com --profile active-authorized \
   --scope /work/config/scopes/scope.local.json --sqli-detection \
   -o /reports/ejemplo.html --format html
 ```
@@ -397,7 +407,7 @@ Para analizar parámetros POST/JSON, añade una solicitud HTTP cruda capturada p
 el propietario. La opción es repetible y el encabezado `Host` debe pertenecer al alcance:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
+docker compose run --rm soryntel-security scan ejemplo.com --profile active-validation \
   --scope /work/config/scopes/scope.local.json --sqlmap-request /work/request-search.txt \
   -o /reports/ejemplo.json
 ```
@@ -410,7 +420,7 @@ establecer `allow_dast: true`; `--zap-ajax` requiere además
 `dast_max_minutes` reparte el plazo entre spider, AJAX spider y active scan:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
+docker compose run --rm soryntel-security scan ejemplo.com --profile active-validation \
   --scope /work/config/scopes/scope.local.json --crawl --dast --zap-ajax \
   -o /reports/ejemplo.json
 ```
@@ -428,7 +438,7 @@ el archivo al terminar:
 
 ```bash
 cp config/examples/auth-headers.example.json auth-headers.local.json
-docker compose run --rm uncp-offsec scan ejemplo.com --profile active-validation \
+docker compose run --rm soryntel-security scan ejemplo.com --profile active-validation \
   --scope /work/config/scopes/scope.local.json --crawl --dast --zap-ajax \
   --auth-headers /work/auth-headers.local.json \
   --api-spec-url https://api.ejemplo.com/openapi.json \
@@ -445,7 +455,7 @@ ejecuta Trivy o pip-audit. La imagen incluye Bandit y pip-audit; Semgrep y Trivy
 se usan automáticamente cuando están instalados. Estos módulos complementan DAST:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --no-email \
+docker compose run --rm soryntel-security scan ejemplo.com --no-email \
   --source /work --sast --sca -o /reports/codigo.html --format html
 ```
 
@@ -463,7 +473,7 @@ lectura truncada y `OPTIONS`; no ejecuta los métodos de cambio anunciados por e
 servidor. Requiere `allow_anonymous_assessment: true` en el alcance:
 
 ```bash
-docker compose run --rm uncp-offsec scan ejemplo.com --no-email \
+docker compose run --rm soryntel-security scan ejemplo.com --no-email \
   --profile active-validation --scope /work/config/scopes/scope.local.json \
   --crawl --anonymous-assessment --headers --dast --zap-ajax \
   -o /reports/anonimo.html --format html

@@ -6,4 +6,4 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 python -m pip install --user --upgrade pipx
 python -m pipx ensurepath
 python -m pipx install --force .
-Write-Host 'Installed. Open a new PowerShell session, then run: uncp_offsec doctor'
+Write-Host 'Installed. Open a new PowerShell session, then run: soryntel-security doctor'

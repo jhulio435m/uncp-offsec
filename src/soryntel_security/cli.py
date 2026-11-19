@@ -1,4 +1,4 @@
-"""UnCP OffSec CLI - unified email + web asset assessment."""
+"""Soryntel Security CLI - unified email + web asset assessment."""
 
 from __future__ import annotations
 
@@ -110,8 +110,8 @@ def _target_value(value: str) -> str:
 
 def _prompt_target(mode: str) -> str:
     labels = {
-        "1": "Ingresa el dominio raíz (ejemplo: uncp.edu.pe)",
-        "2": "Ingresa el subdominio exacto (ejemplo: erpcampus.uncp.edu.pe)",
+        "1": "Ingresa el dominio raíz (ejemplo: empresa.com)",
+        "2": "Ingresa el subdominio exacto (ejemplo: portal.empresa.com)",
         "3": "Ingresa el dominio de correo (ejemplo: soryntel.com)",
     }
     while True:
@@ -122,10 +122,10 @@ def _prompt_target(mode: str) -> str:
 
 
 @click.group(invoke_without_command=True)
-@click.version_option(__version__, prog_name="uncp_offsec")
+@click.version_option(__version__, prog_name="soryntel-security")
 @click.pass_context
 def cli(ctx):
-    """UnCP OffSec - automated email + web surface assessment.
+    """Soryntel Security - automated email + web surface assessment.
 
     Run without a command in an interactive terminal to open the guided assistant.
     """
@@ -236,7 +236,7 @@ def wizard():
     if not _interactive_terminal():
         raise click.UsageError("wizard requires an interactive terminal (TTY).")
 
-    click.secho("UNCP OFFSEC - asistente", fg="cyan", bold=True)
+    click.secho("SORYNTEL SECURITY - asistente", fg="cyan", bold=True)
     click.echo("1) Dominio completo\n2) Subdominio exacto\n3) Solo correo\n4) Analizar archivo .eml")
     mode = click.prompt("Elige el tipo de análisis", type=click.Choice(["1", "2", "3", "4"]), default="1")
     if mode == "4":
@@ -324,10 +324,10 @@ def wizard():
     click.echo()
     click.secho("Resumen", fg="cyan", bold=True)
     click.echo(f"  Objetivo: {domain or eml}")
-    click.echo(f"  Comando:  uncp_offsec {' '.join(map(str, args))}")
+    click.echo(f"  Comando:  soryntel-security {' '.join(map(str, args))}")
     click.echo()
     click.secho("Iniciando análisis...", fg="cyan")
-    cli.main(args=list(map(str, args)), prog_name="uncp_offsec", standalone_mode=False)
+    cli.main(args=list(map(str, args)), prog_name="soryntel-security", standalone_mode=False)
 
 
 @cli.command()
