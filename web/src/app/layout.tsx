@@ -39,7 +39,11 @@ export const viewport: Viewport = { themeColor: "#0b0b0c", colorScheme: "dark" }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        {/* Activa la coreografía solo si hay JavaScript: sin él, nada queda oculto. */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+        {children}
+      </body>
     </html>
   );
 }

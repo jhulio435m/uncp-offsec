@@ -332,8 +332,10 @@ h1 {
   stroke-width: 1.5;
 }
 
+/* Oculta hasta que el barrido pasa por su activo (su retraso de animación). */
 .mapa-marca {
-  animation: mapa-marca 12s steps(1, end) infinite backwards;
+  opacity: 0;
+  animation: mapa-marca 12s steps(1, end) infinite;
 }
 
 .mapa-marca rect {
@@ -475,11 +477,125 @@ h1 {
   border-top: 1px solid var(--gris-linea);
 }
 
+.seccion[data-seccion] {
+  padding-bottom: var(--seccion);
+}
+
 .seccion-clara {
   background: var(--blanco);
   color: var(--negro);
   border-top: 0;
   color-scheme: light;
+}
+
+/* ---------- Coreografía de scroll ---------- */
+
+[data-seccion] {
+  position: relative;
+}
+
+/* Línea superior que se traza de izquierda a derecha al entrar la sección. */
+.seccion[data-seccion] {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.seccion[data-seccion]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--blanco);
+  transform-origin: left;
+  z-index: 21;
+}
+
+.seccion-clara[data-seccion]::before {
+  background: var(--negro);
+}
+
+.ceja {
+  position: sticky;
+  top: var(--cabecera);
+  z-index: 20;
+  margin-bottom: var(--seccion);
+  background: var(--negro);
+  border-bottom: 1px solid var(--gris-linea);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gris);
+}
+
+.seccion-clara .ceja {
+  background: var(--blanco);
+  border-bottom-color: var(--linea-clara);
+  color: var(--gris-papel);
+}
+
+.ceja .ancho {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.8rem;
+}
+
+.ceja b {
+  color: var(--blanco);
+  font-weight: 700;
+}
+
+.seccion-clara .ceja b {
+  color: var(--negro);
+}
+
+.ceja span:last-child {
+  text-align: right;
+}
+
+/* Estado previo: solo con JavaScript y antes de que la sección entre. */
+.js [data-seccion]:not([data-in])::before {
+  transform: scaleX(0);
+}
+
+.js [data-seccion]:not([data-in]) .ceja span:first-child {
+  opacity: 0;
+  transform: translateX(-1.5rem);
+}
+
+.js [data-seccion]:not([data-in]) .ceja span:last-child {
+  opacity: 0;
+  transform: translateX(1.5rem);
+}
+
+.js [data-seccion]:not([data-in]) :is(.titular > *, .frentes > li, .hace > li, .nunca h2, .nunca li, .excepcion, .hallazgos, .medidas > div, .pasos > li, .capacidades > li, .plataforma-pie, .solicitar > *) {
+  opacity: 0;
+  transform: translateY(1.75rem);
+}
+
+[data-seccion]::before {
+  transition: transform 1.1s var(--suave);
+}
+
+.ceja span {
+  transition: opacity 0.7s var(--suave) 0.25s, transform 0.7s var(--suave) 0.25s;
+}
+
+[data-seccion] :is(.titular > *, .frentes > li, .hace > li, .nunca h2, .nunca li, .excepcion, .hallazgos, .medidas > div, .pasos > li, .capacidades > li, .plataforma-pie, .solicitar > *) {
+  transition: opacity 0.8s var(--suave), transform 0.8s var(--suave);
+  transition-delay: calc(0.3s + var(--i, 0) * 0.08s);
+}
+
+[data-seccion] :is(.titular > *, .frentes > li, .hace > li, .nunca li, .medidas > div, .pasos > li, .capacidades > li, .solicitar > *):nth-child(2) { --i: 1; }
+[data-seccion] :is(.frentes > li, .hace > li, .nunca li, .medidas > div, .pasos > li, .capacidades > li):nth-child(3) { --i: 2; }
+[data-seccion] :is(.frentes > li, .hace > li, .nunca li, .medidas > div, .pasos > li, .capacidades > li):nth-child(4) { --i: 3; }
+[data-seccion] :is(.nunca li, .capacidades > li):nth-child(5) { --i: 4; }
+[data-seccion] :is(.nunca li, .capacidades > li):nth-child(6) { --i: 5; }
+[data-seccion] .nunca li:nth-child(7) { --i: 6; }
+[data-seccion] :is(.frentes, .hace, .hallazgos, .pasos, .capacidades) { --base: 1; }
+[data-seccion] :is(.frentes > li, .hace > li, .pasos > li, .capacidades > li, .hallazgos, .medidas > div, .plataforma-pie, .excepcion) {
+  transition-delay: calc(0.45s + var(--i, 0) * 0.08s);
 }
 
 .titular {
@@ -567,6 +683,10 @@ h3 {
 /* Lo que nunca hace, con el mismo peso que lo que promete: una regla por fila a todo el ancho. */
 .nunca {
   padding-block: clamp(3.5rem, 7vw, 6rem) var(--seccion);
+}
+
+.nunca[data-seccion]::before {
+  content: none;
 }
 
 .nunca h2 {
@@ -1259,6 +1379,10 @@ h3 {
   /* Sin movimiento, el mapa queda en su estado final: conexiones trazadas y activos marcados. */
   .mapa-barrido {
     display: none;
+  }
+
+  .mapa-marca {
+    opacity: 1;
   }
 
   * {

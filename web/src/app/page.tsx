@@ -1,3 +1,4 @@
+import { Ceja, Choreo } from "@/components/choreo";
 import { Findings } from "@/components/findings";
 import { RequestForm } from "@/components/request-form";
 import { SurfaceMap } from "@/components/surface-map";
@@ -55,6 +56,7 @@ export default function Page() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <Choreo />
       <a href="#contenido" className="saltar">
         Saltar al contenido
       </a>
@@ -113,7 +115,8 @@ export default function Page() {
           </ul>
         </section>
 
-        <section id="auditoria" className="seccion">
+        <section id="auditoria" className="seccion" data-seccion="">
+          <Ceja n="01" name="Auditoría" side="Cuatro frentes" />
           <div className="ancho">
             <div className="titular">
               <h2>Cuatro frentes, un solo informe.</h2>
@@ -138,7 +141,8 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="reglas" className="seccion seccion-clara">
+        <section id="reglas" className="seccion seccion-clara" data-seccion="">
+          <Ceja n="02" name="Reglas" side="Alcance por escrito" />
           <div className="ancho">
             <div className="titular">
               <h2>Las reglas van por escrito.</h2>
@@ -155,7 +159,7 @@ export default function Page() {
           </div>
         </section>
 
-        <section className="nunca" aria-labelledby="nunca-titulo">
+        <section className="nunca" aria-labelledby="nunca-titulo" data-seccion="">
           <h2 id="nunca-titulo" className="ancho">
             La plataforma nunca
           </h2>
@@ -172,7 +176,8 @@ export default function Page() {
           </p>
         </section>
 
-        <section id="informe" className="seccion">
+        <section id="informe" className="seccion" data-seccion="">
+          <Ceja n="03" name="Informe" side="Extracto ilustrativo" />
           <div className="ancho">
             <div className="titular">
               <h2>Un hallazgo sin evidencia no es un hallazgo.</h2>
@@ -203,7 +208,8 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="proceso" className="seccion seccion-linea">
+        <section id="proceso" className="seccion seccion-linea" data-seccion="">
+          <Ceja n="04" name="Proceso" side="Cuatro pasos" />
           <div className="ancho">
             <div className="titular">
               <h2>Cómo es trabajar con nosotros.</h2>
@@ -220,7 +226,8 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="plataforma" className="seccion seccion-clara">
+        <section id="plataforma" className="seccion seccion-clara" data-seccion="">
+          <Ceja n="05" name="Plataforma" side={`Versión ${PLATFORM_VERSION}`} />
           <div className="ancho">
             <div className="titular">
               <h2>La misma herramienta, en manos de su equipo.</h2>
@@ -249,7 +256,8 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="solicitar" className="seccion">
+        <section id="solicitar" className="seccion" data-seccion="">
+          <Ceja n="06" name="Solicitar" side="Le respondemos por correo" />
           <div className="ancho solicitar">
             <div>
               <h2>Solicite su evaluación.</h2>

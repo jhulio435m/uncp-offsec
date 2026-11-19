@@ -119,7 +119,10 @@ Todo recto, sin radios. Líneas de 1 px para separar y de 3 px para abrir un blo
 - **Tabla de hallazgos**: filtros por estado de verificación con `aria-pressed`; cada fila es un botón que abre evidencia, remediación y el código de estado del informe. Siempre lleva el aviso de extracto ilustrativo.
 - **Formulario**: campos sobre `negro-alto`, opciones como casillas de fila completa, confirmación de autoridad con borde discontinuo, errores en `rojo-claro` bajo cada campo y una alternativa por correo o WhatsApp si el envío falla.
 - **Foco**: contorno de 3 px, blanco sobre negro y negro sobre blanco.
-- **Movimiento**: la barra roja del titular se traza una vez al cargar. Respeta `prefers-reduced-motion`.
+- **Mapa de superficie** (portada): ilustración vectorial en bucle de 12 s. Se trazan las conexiones, una línea roja barre los activos y cada uno queda marcado con su estado; el pie cambia al pasar el cursor o el foco.
+- **Barra de sección**: fija bajo la cabecera mientras dura la sección, con número y nombre a la izquierda y un rótulo a la derecha, en mono.
+- **Coreografía de scroll**: al entrar cada sección se traza su línea superior de izquierda a derecha, la barra de sección entra desde ambos lados y el contenido aparece escalonado (80 ms entre elementos). Solo se activa con JavaScript; sin él, o con `prefers-reduced-motion`, todo está visible desde el inicio.
+- **Movimiento**: además, la barra roja del titular se traza una vez al cargar.
 
 ## Do's and Don'ts
 
