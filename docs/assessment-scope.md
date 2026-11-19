@@ -12,9 +12,11 @@ pruebas acotadas y no destructivas.
 - Revisión de correo, TLS, cabeceras y configuraciones web.
 - Descubrimiento acotado de contenido y rutas dentro del dominio autorizado.
 - Validación no destructiva mediante una lista positiva de plantillas Nuclei
-  revisadas. La imagen incluye detección tecnológica, cabeceras, cookies, CORS,
-  directory listing, documentación OpenAPI/Swagger y controles TLS. No ejecuta
-  automáticamente la colección comunitaria completa ni plantillas de explotación.
+  revisadas (`config/nuclei-reviewed.txt`): detección tecnológica, cabeceras,
+  cookies, CORS, HSTS y CSP débiles, directory listing, páginas de depuración,
+  documentación OpenAPI/Swagger, archivos expuestos y controles TLS (versiones,
+  cifrados y validez del certificado). No ejecuta automáticamente la colección
+  comunitaria completa ni plantillas de explotación.
 - Detección SQLi en GET y solicitudes HTTP autorizadas POST/JSON, sin enumerar
   ni extraer datos.
 - OWASP ZAP con spider tradicional, AJAX spider opcional y validación activa.

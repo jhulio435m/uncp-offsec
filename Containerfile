@@ -57,6 +57,8 @@ ENV PATH=/opt/uncp-tools/bin:${PATH} \
     PYTHONUNBUFFERED=1
 
 COPY wordlists/raft-*-directories.txt /opt/uncp-tools/wordlists/
+# Única fuente de la lista de plantillas Nuclei que se instalan.
+COPY config/nuclei-reviewed.txt /opt/uncp-tools/nuclei-reviewed.txt
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       bash bsdextrautils ca-certificates curl dnsutils libpcap0.8 nmap openssl procps ruby tar whatweb \
@@ -78,26 +80,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        -o /tmp/nuclei-templates.tar.gz \
     && echo "${NUCLEI_TEMPLATES_SHA256}  /tmp/nuclei-templates.tar.gz" | sha256sum -c - \
     && mkdir -p /opt/uncp-tools/nuclei-safe \
-    && tar -xzf /tmp/nuclei-templates.tar.gz -C /opt/uncp-tools/nuclei-safe --strip-components=1 \
-       nuclei-templates-10.4.8/http/technologies/tech-detect.yaml \
-       nuclei-templates-10.4.8/http/misconfiguration/http-missing-security-headers.yaml \
-       nuclei-templates-10.4.8/http/misconfiguration/cookies-without-httponly.yaml \
-       nuclei-templates-10.4.8/http/misconfiguration/cookies-without-secure.yaml \
-       nuclei-templates-10.4.8/http/misconfiguration/missing-cookie-samesite-strict.yaml \
-       nuclei-templates-10.4.8/http/miscellaneous/directory-listing.yaml \
-       nuclei-templates-10.4.8/http/vulnerabilities/generic/cors-misconfig.yaml \
-       nuclei-templates-10.4.8/http/exposures/apis/openapi.yaml \
-       nuclei-templates-10.4.8/http/exposures/apis/swagger-api.yaml \
-       nuclei-templates-10.4.8/ssl/deprecated-tls.yaml \
-       nuclei-templates-10.4.8/ssl/insecure-cipher-suite-detect.yaml \
-       nuclei-templates-10.4.8/ssl/mismatched-ssl-certificate.yaml \
-       nuclei-templates-10.4.8/ssl/weak-cipher-suites.yaml \
+    && grep -vE '^[[:space:]]*(#|$)' /opt/uncp-tools/nuclei-reviewed.txt \
+       | sed "s#^#nuclei-templates-${NUCLEI_TEMPLATES_REF#v}/#" > /tmp/nuclei-list.txt \
+    && tar -xzf /tmp/nuclei-templates.tar.gz -C /opt/uncp-tools/nuclei-safe --strip-components=1 -T /tmp/nuclei-list.txt \
+    && test "$(find /opt/uncp-tools/nuclei-safe -name '*.yaml' | wc -l)" = "$(wc -l < /tmp/nuclei-list.txt)" \
     && curl -fsSL "https://raw.githubusercontent.com/vulnersCom/nmap-vulners/${VULNERS_REF}/vulners.nse" \
        -o /usr/share/nmap/scripts/vulners.nse \
     && echo "${VULNERS_SHA256}  /usr/share/nmap/scripts/vulners.nse" | sha256sum -c - \
     && nmap --script-updatedb \
     && ln -s /opt/uncp-tools/testssl/testssl.sh /opt/uncp-tools/bin/testssl.sh \
-    && rm -f /tmp/testssl.tar.gz /tmp/sqlmap.tar.gz /tmp/nuclei-templates.tar.gz \
+    && rm -f /tmp/testssl.tar.gz /tmp/sqlmap.tar.gz /tmp/nuclei-templates.tar.gz /tmp/nuclei-list.txt \
     && useradd --create-home --uid 10001 uncp
 COPY --from=go-tools /out/ /opt/uncp-tools/bin/
 COPY --from=trivy /usr/local/bin/trivy /opt/uncp-tools/bin/trivy

@@ -115,9 +115,13 @@ docker compose run --rm soryntel-security scan -sub erpcampus.uncp.edu.pe \
 ```
 
 Nuclei no ejecuta la colección comunitaria completa: las etiquetas negativas no
-garantizan que una plantilla sea inocua. La imagen usa una lista positiva y
-fijada de plantillas revisadas; actualmente solo `tech-detect`, que realiza un
-GET al URL base. Las CVE se correlacionan por versiones mediante NVD/Nmap.
+garantizan que una plantilla sea inocua. La imagen instala únicamente las
+plantillas de `config/nuclei-reviewed.txt` (32 hoy), tomadas de una versión
+fijada y verificada por SHA-256. Ese archivo explica los criterios de revisión
+(solo TLS o GET/HEAD/OPTIONS, sin cargas, sin credenciales, sin modificar el
+destino, sin extraer secretos) y las plantillas rechazadas con su motivo.
+`doctor --full` comprueba que estén todas y que no haya ninguna fuera de la
+lista. Las CVE se correlacionan por versiones mediante NVD/Nmap.
 
 ## Instalación del CLI
 

@@ -648,11 +648,24 @@ def doctor(full):
     if full:
         assets = (
             Path("/opt/uncp-tools/wordlists/raft-medium-directories.txt"),
-            Path("/opt/uncp-tools/nuclei-safe/http/technologies/tech-detect.yaml"),
-            Path("/opt/uncp-tools/nuclei-safe/http/misconfiguration/http-missing-security-headers.yaml"),
+            Path("/opt/uncp-tools/nuclei-reviewed.txt"),
             Path("/usr/share/nmap/scripts/vulners.nse"),
             Path("/opt/uncp-tools/scopes/scope.uncp.json"),
         )
+        # Cada plantilla de la lista revisada debe estar instalada, y ninguna más.
+        from .web.vulns import REVIEWED_LIST, SAFE_TEMPLATE, reviewed_templates
+
+        reviewed_file = Path(REVIEWED_LIST)
+        if reviewed_file.is_file():
+            expected = reviewed_templates(reviewed_file.read_text(encoding="utf-8"))
+            installed = sorted(str(item.relative_to(SAFE_TEMPLATE)) for item in Path(SAFE_TEMPLATE).rglob("*.yaml"))
+            absent = sorted(set(expected) - set(installed))
+            extra = sorted(set(installed) - set(expected))
+            if absent or extra:
+                click.echo(click.style(f"MISSING nuclei templates: absent={absent} unreviewed={extra}", fg="yellow"))
+                missing.append("nuclei-reviewed-templates")
+            else:
+                click.echo(click.style(f"OK      nuclei       {len(expected)} reviewed templates installed", fg="green"))
         for asset in assets:
             if asset.is_file() and asset.stat().st_size > 0:
                 click.echo(click.style(f"OK      asset        {asset}", fg="green"))

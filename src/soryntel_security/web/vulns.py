@@ -15,6 +15,12 @@ MAX_SCORE = 18.0
 
 _INFO_TAGS = {"exposure", "misconfiguration", "default-login", "tech"}
 SAFE_TEMPLATE = "/opt/uncp-tools/nuclei-safe"
+REVIEWED_LIST = "/opt/uncp-tools/nuclei-reviewed.txt"
+
+
+def reviewed_templates(text: str) -> list[str]:
+    """Return the template paths named in the reviewed list, ignoring comments."""
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
 
 
 def parse_nuclei_json(lines: list[str]) -> list[dict]:

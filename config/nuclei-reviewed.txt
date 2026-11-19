@@ -1,0 +1,60 @@
+# Plantillas Nuclei revisadas para Soryntel Security.
+#
+# Pertenecen al paquete fijado en el Containerfile (NUCLEI_TEMPLATES_REF, con
+# su SHA-256). La imagen extrae SOLO las rutas de esta lista; ninguna otra
+# plantilla de la colección comunitaria se instala ni se ejecuta.
+#
+# Criterios para entrar en la lista (se revisa el YAML de cada una):
+#   1. Solo apretón de manos TLS, o peticiones GET, HEAD u OPTIONS.
+#   2. Sin cargas, diccionarios ni fuzzing; como máximo dos rutas fijas.
+#   3. Sin intentos de inicio de sesión ni credenciales por defecto.
+#   4. No modifica nada en el destino (nada de PUT, POST, DELETE).
+#   5. Sus extractores no sacan secretos del cuerpo de la respuesta.
+#
+# Revisadas y rechazadas, con el motivo:
+#   http/misconfiguration/put-method-enabled.yaml   sube un archivo con PUT (4)
+#   http/exposures/configs/git-config.yaml          extrae credenciales del cuerpo (5)
+#   http/exposures/configs/phpinfo-files.yaml       prueba una lista de nombres (2)
+#   http/miscellaneous/http-trace.yaml              usa el método TRACE (1)
+
+# Tecnologías
+http/technologies/tech-detect.yaml
+
+# Cabeceras y cookies
+http/misconfiguration/http-missing-security-headers.yaml
+http/misconfiguration/cookies-without-httponly.yaml
+http/misconfiguration/cookies-without-secure.yaml
+http/misconfiguration/missing-cookie-samesite-strict.yaml
+http/misconfiguration/weak-hsts-detect.yaml
+http/misconfiguration/weak-csp-detect.yaml
+http/misconfiguration/csp-script-src-wildcard.yaml
+http/misconfiguration/xss-deprecated-header.yaml
+http/misconfiguration/x-backend-server-header-detect.yaml
+http/miscellaneous/deprecated-feature-policy.yaml
+http/vulnerabilities/generic/cors-misconfig.yaml
+
+# Configuración del servidor
+http/miscellaneous/directory-listing.yaml
+http/miscellaneous/options-method.yaml
+http/misconfiguration/https-to-http-redirect.yaml
+http/misconfiguration/server-status.yaml
+http/misconfiguration/django-debug-config-enabled.yaml
+http/misconfiguration/laravel-debug-enabled.yaml
+
+# Archivos y documentación expuestos
+http/exposures/apis/openapi.yaml
+http/exposures/apis/swagger-api.yaml
+http/exposures/files/ds-store-file.yaml
+http/miscellaneous/robots-txt.yaml
+http/miscellaneous/security-txt.yaml
+
+# TLS
+ssl/deprecated-tls.yaml
+ssl/tls-version.yaml
+ssl/insecure-cipher-suite-detect.yaml
+ssl/weak-cipher-suites.yaml
+ssl/mismatched-ssl-certificate.yaml
+ssl/expired-ssl.yaml
+ssl/self-signed-ssl.yaml
+ssl/untrusted-root-certificate.yaml
+ssl/revoked-ssl-certificate.yaml
