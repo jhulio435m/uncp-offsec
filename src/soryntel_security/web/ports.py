@@ -54,6 +54,7 @@ _PORT_MAP = {
 def parse_naabu_json(lines: list[str]) -> list[dict]:
     """Parse naabu -json output lines into {host, port, protocol} dicts."""
     out = []
+    seen: set[tuple[str, int, str]] = set()
     for line in lines:
         try:
             rec = json.loads(line)
@@ -65,6 +66,11 @@ def parse_naabu_json(lines: list[str]) -> list[dict]:
         host = rec.get("host") or rec.get("ip") or ""
         if not host:
             continue
+        # naabu can report the same open port more than once.
+        key = (str(rec.get("ip") or host), int(port), str(rec.get("protocol") or "tcp"))
+        if key in seen:
+            continue
+        seen.add(key)
         out.append(
             {
                 "host": rec.get("ip") or host,

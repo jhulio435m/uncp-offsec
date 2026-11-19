@@ -36,8 +36,8 @@ Auditoría con evidencia reproducible y límites escritos. La parte automatizada
 Servicios confirmados por el usuario:
 
 - **Web y correo**: superficie expuesta, DNS, TLS, cabeceras, tecnologías y versiones, correlación con NVD y CISA KEV, DAST con OWASP ZAP, Nuclei con lista revisada, SPF, DKIM, DMARC, MTA-STS, DANE, SMTP y STARTTLS.
-- **Red e infraestructura**: servidores, puertos, servicios, configuración y parches.
-- **Código y dependencias**: SAST (Semgrep, Bandit) y SCA (Trivy, pip-audit).
+- **Red e infraestructura**: equipos, puertos, servicios y versiones, desde Internet y dentro de la red (comando `network`, solo rangos privados declarados en el alcance).
+- **Código y dependencias**: SAST (Semgrep, Bandit) y SCA con Trivy para Python, Node.js, PHP, Ruby, Go, Rust, Java y .NET (pip-audit solo Python).
 - **Pentest manual**: pruebas de intrusión con explotación controlada hechas por una persona.
 
 Límites de la herramienta (docs/assessment-scope.md), que la web debe respetar al describir la parte automatizada: no explota, no obtiene shell, no extrae ni altera datos, no hace fuerza bruta ni denegación de servicio, no evade WAF ni bloqueos, no toca terceros. Una coincidencia de CVE es evidencia para revisión, no explotabilidad. El informe nunca declara cobertura total automática de OWASP Top 10:2025.

@@ -52,9 +52,21 @@ _STATUS_ES = {
     "TOOL_INCOMPLETE": "Herramienta incompleta",
     "NO_CANDIDATES": "Sin candidatos",
     "MANUAL_REQUIRED": "Revisión manual",
+    "SERVICE_CONFIRMED": "Servicio confirmado",
+    "SCOPE_ENFORCED": "Limitado por el alcance",
+    "CROSS_ENGINE_RESOLVED": "Resuelto entre motores",
+    "CORRELATED": "Correlacionado",
+    "CONFIGURED": "Configurado",
     "PARTIAL": "Parcial",
     "INCOMPLETE": "Incompleto",
     "NOT_ASSESSED": "Sin evaluar",
+}
+
+_CATEGORY_ES = {
+    "Attack Surface": "Superficie de ataque",
+    "Transport Security": "Seguridad del transporte",
+    "Platform Hygiene": "Higiene de la plataforma",
+    "Application Security": "Seguridad de la aplicación",
 }
 
 _CONFIDENCE_ES = {"HIGH": "alta", "MEDIUM": "media", "LOW": "baja", "UNSPECIFIED": "sin especificar"}
@@ -64,6 +76,7 @@ _MODE_ES = {
     "active-validation": "validación activa",
     "exact-host": "host exacto",
     "domain-discovery": "descubrimiento por dominio",
+    "internal-network": "red interna",
 }
 
 
@@ -89,6 +102,7 @@ _EMAIL_LABELS = {
 # Nombre visible de los módulos web; los que no están aquí se muestran tal cual.
 _WEB_LABELS = {
     "discovery": "Descubrimiento de subdominios",
+    "network_discovery": "Descubrimiento de equipos",
     "subdomains": "Descubrimiento de subdominios",
     "crawl": "Rastreo",
     "content_discovery": "Descubrimiento de contenido",
@@ -189,7 +203,7 @@ def _phase_section(phase: dict, title: str, labels: dict) -> str:
 
     score_rows = ""
     for c in categories:
-        name = c.get("name", "")
+        name = _CATEGORY_ES.get(c.get("name", ""), c.get("name", ""))
         score = float(c.get("score", 0))
         maxv = float(c.get("max", 0))
         pct = (score / maxv * 100) if maxv else 0
@@ -387,8 +401,9 @@ def render(payload: Any) -> str:
     email = data.get("email") or {}
     web = data.get("web") or {}
     email_section = _phase_section(email, "Seguridad del correo", _EMAIL_LABELS)
+    internal = (data.get("execution") or {}).get("target_mode") == "internal-network"
     web_section = _phase_section(
-        web, "Aplicación web e infraestructura", _WEB_LABELS
+        web, "Red interna" if internal else "Aplicación web e infraestructura", _WEB_LABELS
     )
     inventory = _asset_inventory(web)
     dns_inventory = _dns_inventory(web)
@@ -403,9 +418,11 @@ def render(payload: Any) -> str:
     elapsed = execution.get("elapsed_seconds")
     elapsed_text = f" &middot; Duración: {float(elapsed):.0f} s" if elapsed is not None else ""
     exact_host = target_mode == "exact-host"
-    report_kind = "Evaluación web de un host exacto" if exact_host and not email else "Evaluación combinada de correo y web" if email and web else "Evaluación web" if web else "Evaluación de correo"
-    score_label = "Postura web" if web and not email else "Postura del correo" if email and not web else "Postura general"
+    report_kind = "Evaluación de red interna" if internal else "Evaluación web de un host exacto" if exact_host and not email else "Evaluación combinada de correo y web" if email and web else "Evaluación web" if web else "Evaluación de correo"
+    score_label = "Postura de la red interna" if internal else "Postura web" if web and not email else "Postura del correo" if email and not web else "Postura general"
     target_note = (
+        "Este informe cubre solo las direcciones del alcance que respondieron al descubrimiento. Una dirección que no respondió no fue evaluada, y no se probaron credenciales ni se explotó nada."
+        if internal else
         "Este informe cubre solo el host indicado y las URL que pertenecen a él. No evalúa otros subdominios ni la postura de correo de la organización."
         if exact_host and not email else
         "El puntaje resume solo las fases y los módulos que aparecen en este informe."

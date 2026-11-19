@@ -24,6 +24,10 @@ pruebas acotadas y no destructivas.
   Las rutas excluidas en el alcance se retiran del spider y del active scan.
 - Nmap `-sV` y una lista cerrada de NSE de inventario/TLS; la correlación de
   vulnerabilidades usa `vulners`, que parte de la versión/CPE detectada.
+- Evaluación de red interna (`network`) sobre los rangos privados declarados en
+  el alcance: descubrimiento de equipos, puertos TCP e identificación de
+  servicios y versiones. No acepta rangos públicos ni direcciones fuera del
+  alcance, y no prueba credenciales.
 - Informe de evidencia, cobertura limitada, severidad y remediación sugerida.
 - Escaneo autenticado con encabezados de una cuenta de prueba de mínimo privilegio;
   las credenciales no se serializan en el informe.

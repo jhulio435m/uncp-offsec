@@ -29,6 +29,51 @@ El informe HTML sale en español y con la marca. Los títulos y el detalle de ca
 hallazgo los escribe el módulo que lo produce y, por ahora, siguen en inglés; el
 informe JSON conserva los códigos originales de severidad y estado.
 
+## Red interna
+
+`soryntel-security network` evalúa equipos dentro de la red de quien autoriza
+la evaluación. Se ejecuta desde un equipo conectado a esa red.
+
+```bash
+soryntel-security network 192.168.10.0/24 --scope scope.interno.json -o red.html
+soryntel-security network 192.168.10.5 192.168.10.20 --scope scope.interno.json
+```
+
+Qué hace, en este orden:
+
+1. Comprueba que cada dirección esté dentro de las redes del alcance.
+2. Descubre qué direcciones responden (`nmap -sn`).
+3. Busca puertos TCP abiertos en las que respondieron (naabu, los 1000 o 100
+   más comunes).
+4. Identifica el servicio y la versión detrás de cada puerto (Nmap `-sV` y la
+   lista cerrada de scripts de inventario; `vulners` solo si el alcance tiene
+   `allow_nmap_vuln`).
+
+Mantiene el mismo límite que el resto de la herramienta: no prueba credenciales
+y no explota nada.
+
+El alcance es obligatorio y debe declarar las redes. Ejemplo en
+`config/examples/scope-internal.example.json`:
+
+```json
+{
+  "name": "Red interna de ejemplo",
+  "allow_active": true,
+  "networks": ["192.168.10.0/24"],
+  "network_max_hosts": 256
+}
+```
+
+Reglas del alcance para este modo:
+
+- `networks` solo acepta rangos privados; un rango público se rechaza.
+- Cada rango debe ser /16 o más pequeño.
+- `network_max_hosts` limita cuántas direcciones cubre una ejecución (256 por
+  defecto, 4096 como máximo).
+- Sin `allow_active: true` el comando no corre.
+- Una dirección que no responde al descubrimiento no se evalúa, y el informe lo
+  dice. `--no-discovery` revisa todas las direcciones, hasta 64 por ejecución.
+
 ## Código y dependencias: qué lenguajes se cubren
 
 `scan --source DIR --sast --sca` revisa un árbol de código que usted autoriza.

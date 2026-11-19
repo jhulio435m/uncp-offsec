@@ -616,6 +616,69 @@ def scan_cmd(
         click.echo(click.style(f"Report written to {output}", fg="green"))
 
 
+@cli.command("network")
+@click.argument("targets", nargs=-1, required=True)
+@click.option("--scope", "scope_path", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
+              help="Scope file whose 'networks' list authorizes the private ranges to assess.")
+@click.option("--top-ports", type=click.Choice(["100", "1000"]), default="1000", show_default=True,
+              help="How many of the most common TCP ports to check on each host.")
+@click.option("--no-discovery", is_flag=True, help="Port-scan every address without a ping scan first (small ranges only).")
+@click.option("-o", "--output", type=click.Path(dir_okay=False, path_type=Path), help="Write the report to this file.")
+@click.option("--format", "fmt", type=click.Choice(["json", "html"]), help="Report format when using -o/--output.")
+def network_cmd(targets, scope_path, top_ports, no_discovery, output, fmt):
+    """Assess internal hosts: TARGETS are private IP addresses or CIDR ranges.
+
+    Run it from inside the network being assessed. It finds which authorized
+    addresses respond, which TCP ports they expose and what service answers on
+    each. It never tries credentials and never exploits anything.
+    """
+    from .network import expand_targets, run_network
+
+    try:
+        authorization = load_scope(scope_path)
+        addresses = expand_targets(targets, authorization)
+        if not authorization.allow_active:
+            raise ValueError("internal assessment sends probes; the scope must set 'allow_active': true")
+    except (TypeError, ValueError) as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    click.echo(f"  Alcance:  {authorization.name}")
+    click.echo(f"  Redes:    {', '.join(targets)} ({len(addresses)} direcciones)")
+    click.echo(f"  Puertos:  los {top_ports} más comunes por equipo")
+    started = time.monotonic()
+    try:
+        web_result = run_network(
+            targets, authorization, top_ports=int(top_ports), discovery=not no_discovery,
+            on_progress=lambda stage, _fraction: click.echo(f"  [..] {stage}"),
+        )
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    from .models import CombinedScanResult
+
+    combined = CombinedScanResult(domain=web_result.domain)
+    combined.tool_version = __version__
+    combined.web = web_result
+    combined.web_modules = len(web_result.modules)
+    combined.overall_score = round(float(web_result.total_score), 1)
+    combined.overall_risk = web_result.risk_level
+    combined.scan_profile = "internal-network"
+    combined.scope_name = authorization.name
+    combined.assessment_mode = authorization.assessment_mode
+    combined.target_mode = "internal-network"
+    combined.elapsed_seconds = time.monotonic() - started
+    combined_terminal.render_combined(combined)
+
+    if output:
+        fmt = fmt or (output.suffix.lstrip(".") if output.suffix else "json")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if fmt == "html":
+            combined_html.write(combined, output)
+        else:
+            combined_json.write(combined, output)
+        click.echo(click.style(f"Report written to {output}", fg="green"))
+
+
 @cli.command()
 @click.option("--full", is_flag=True, help="Require every tool and bundled asset used by the complete image.")
 def doctor(full):

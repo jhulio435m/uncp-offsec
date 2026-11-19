@@ -1,0 +1,8 @@
+{
+  "name": "Red interna de ejemplo",
+  "assessment_mode": "identification-only",
+  "allow_active": true,
+  "allow_nmap_vuln": false,
+  "networks": ["192.168.10.0/24"],
+  "network_max_hosts": 256
+}

@@ -72,6 +72,9 @@ def run(cmd: list[str], *, timeout: float | None = 120.0) -> ToolResult:
     try:
         proc = subprocess.run(
             cmd,
+            # Never inherit stdin: several scanners read targets from it when it
+            # is not a terminal and would wait instead of using their arguments.
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=timeout,

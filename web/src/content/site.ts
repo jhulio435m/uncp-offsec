@@ -46,14 +46,22 @@ export const SERVICES = [
   {
     id: "red",
     name: "Red e infraestructura",
-    lead: "Qué servicios responden en sus servidores y en qué estado están.",
-    checks: ["Puertos y servicios expuestos", "Versiones y parches pendientes", "Configuración de servidores y accesos"],
+    lead: "Qué equipos responden, qué puertos tienen abiertos y qué servicio corre en cada uno. Desde Internet y desde dentro de su red.",
+    checks: [
+      "Puertos y servicios expuestos, con su versión",
+      "Versiones con parches pendientes",
+      "Red interna: descubrimiento de equipos en los rangos que usted autoriza",
+    ],
   },
   {
     id: "codigo",
     name: "Código y dependencias",
     lead: "Revisión del código que usted nos entrega y de las librerías de las que depende.",
-    checks: ["Análisis estático con Semgrep y Bandit", "Dependencias vulnerables con Trivy y pip-audit", "Hallazgos ubicados por archivo y línea"],
+    checks: [
+      "Análisis estático con Semgrep y Bandit",
+      "Dependencias vulnerables en Python, Node.js, PHP, Ruby, Go, Rust, Java y .NET",
+      "Hallazgos ubicados por archivo y línea",
+    ],
   },
   {
     id: "pentest",
@@ -87,6 +95,7 @@ export const PLATFORM = [
   { name: "Sesión de prueba", note: "Evaluación autenticada con una cuenta de mínimo privilegio. Las credenciales no se guardan en el informe." },
   { name: "OpenAPI", note: "Importa la especificación de su API para evaluar las rutas declaradas, dentro del alcance." },
   { name: "Comparación", note: "Contrasta el informe de hoy con el anterior y resalta lo que cambió." },
+  { name: "Red interna", note: "Evalúa los rangos privados que el alcance autoriza: equipos, puertos y servicios. No acepta rangos públicos ni prueba credenciales." },
   { name: "Reproducible", note: "Imagen de contenedor con herramientas, listas y plantillas en versiones fijadas." },
 ];
 
