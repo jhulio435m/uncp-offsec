@@ -170,3 +170,55 @@ def test_real_trivy_secret_output_is_parsed(tmp_path, monkeypatch):
     titles = {finding.title for finding in result.findings}
     assert {"AWS Access Key ID committed to the source tree", "Asymmetric Private Key committed to the source tree",
             "GitHub Personal Access Token committed to the source tree"} <= titles
+
+
+def test_shodan_data_for_a_shared_address_is_not_attributed(monkeypatch):
+    monkeypatch.delenv("GOOGLE_SAFE_BROWSING_KEY", raising=False)
+    fetch = _fetch({
+        "crt.sh": [], "haveibeenpwned": [],
+        "internetdb": {"ports": [80, 443, 8443], "vulns": ["CVE-2018-20677"], "hostnames": ["otra-empresa.com", "tienda.net"], "tags": ["cdn"]},
+    })
+
+    result = exposure.run("empresa.com", fetch=fetch, resolve=lambda name: None, addresses=lambda domain: ["104.21.0.1"])
+
+    shared = next(f for f in result.findings if f.title == "104.21.0.1 is a shared address (CDN or shared hosting)")
+    assert shared.severity is Severity.INFO and "otra-empresa.com" in shared.detail and shared.cve_ids == []
+    assert not any(f.title.startswith("Shodan lists") for f in result.findings)
+
+
+def test_public_sources_are_retried_on_server_errors_only(monkeypatch):
+    import urllib.error
+
+    calls = {"n": 0}
+
+    class Reply:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def flaky(request, timeout=0):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise urllib.error.HTTPError(request.full_url, 502, "Bad Gateway", {}, None)
+        return Reply()
+
+    def missing(request, timeout=0):
+        calls["n"] += 1
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(exposure, "urlopen", flaky)
+    assert exposure._get_json("https://crt.sh/x", sleep=lambda seconds: None) == {"ok": True}
+    assert calls["n"] == 3
+
+    calls["n"] = 0
+    monkeypatch.setattr(exposure, "urlopen", missing)
+    try:
+        exposure._get_json("https://internetdb.shodan.io/x", sleep=lambda seconds: None)
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 404
+    assert calls["n"] == 1

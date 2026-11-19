@@ -144,10 +144,13 @@ def run(
         result.findings.append(
             Finding(
                 module=MODULE_NAME,
-                severity=Severity.MEDIUM,
+                # The prober failing is a coverage gap, not evidence about the target.
+                severity=Severity.INFO,
                 title="Host probing via httpx failed",
                 detail=f"httpx exited with rc={tool.returncode}.\n{tool.stderr.strip()[:400]}",
                 recommendation="Re-run the host probing step in isolation.",
+                confidence="HIGH",
+                verification_status="TOOL_INCOMPLETE",
             )
         )
 
@@ -155,13 +158,16 @@ def run(
     if not hosts:
         hosts = _curl_fallback(targets, timeout=max(1, int(min(timeout, 30))))
         if not hosts:
+            # After a prober failure "nothing answered" is not a finding: nothing was measured.
+            result.assessed = tool.ok
             result.findings.append(
                 Finding(
                     module=MODULE_NAME,
-                    severity=Severity.MEDIUM,
+                    severity=Severity.MEDIUM if tool.ok else Severity.INFO,
                     title="No live HTTP(S) hosts",
                     detail="httpx and curl fallback did not detect a reachable web endpoint for the scanned hosts.",
                     recommendation="Verify DNS resolves and that web services are listening on 80/443.",
+                    verification_status="OBSERVED" if tool.ok else "TOOL_INCOMPLETE",
                 )
             )
             return result, []

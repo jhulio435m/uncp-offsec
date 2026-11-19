@@ -89,7 +89,7 @@ def run_mail(domain: str, config: ScanConfig, on_progress: Callable[[str, float]
 
 def run_tls(
     domain: str, hosts: list[HostInfo], tls_limit: int = 4,
-    tool_timeout: float | None = 150.0,
+    tool_timeout: float | None = tls.TLS_TIMEOUT,
 ) -> ModuleResult:
     """Run testssl.sh per https host; returns a tls ModuleResult."""
     https_hosts = [h for h in hosts if h.scheme == "https"]
@@ -119,10 +119,15 @@ def run_tls(
     mr.assessed = True
     findings: list[Finding] = []
     protocols: list[str] = []
+    unfinished = 0
     for host in scanned:
         f, p = tls.analyze_host(host.host, timeout=tool_timeout)
+        unfinished += any(item.verification_status == "TOOL_INCOMPLETE" for item in f)
         findings.extend(f)
         protocols.extend(p)
+    # When the full scan finished on no host, TLS was not really assessed.
+    if scanned and unfinished == len(scanned):
+        mr.assessed = False
     if not findings:
         findings.append(
             Finding(
@@ -254,7 +259,7 @@ def run_web(
     tool_timeout = None if unlimited_tool_time else 180.0
     tls_mr = run_tls(
         domain, hosts, tls_limit=tls_limit,
-        tool_timeout=None if unlimited_tool_time else 150.0,
+        tool_timeout=None if unlimited_tool_time else tls.TLS_TIMEOUT,
     )
 
     modules: dict[str, ModuleResult] = {
@@ -348,6 +353,11 @@ def run_web(
     # is. Do not erase a useful risk rating merely because optional engines did
     # not run.
     risk_level = breakdown.risk_level
+    # The one exception: when host probing itself did not finish, every later
+    # module had nothing to look at. That is no evidence, not a critical target.
+    probe_failed = "live_hosts" in modules and not modules["live_hosts"].assessed
+    if probe_failed:
+        risk_level = "INCONCLUSIVE"
     application_modules = {
         name for name in ("crawl", "content_discovery", "sqli", "vulns", "dast", "anonymous_access")
         if name in modules and modules[name].assessed
@@ -376,6 +386,7 @@ def run_web(
         target_mode="exact-host" if exact_host else "domain-discovery",
     )
     result.breakdown = breakdown  # type: ignore[attr-defined]
+    result.probe_failed = probe_failed  # type: ignore[attr-defined]
     return result
 
 
@@ -413,6 +424,9 @@ def run_combined(
     combined = CombinedScanResult(domain=domain)
     combined.overall_score = overall
     combined.overall_risk = _risk_level(overall) if email is not None or web_result is not None else "INCONCLUSIVE"
+    # A limited scan keeps its observed rating; a scan whose probing failed has nothing to rate.
+    if web_result is not None and getattr(web_result, "probe_failed", False):
+        combined.overall_risk = "INCONCLUSIVE"
     combined.email = email
     combined.web = web_result
     combined.email_modules = len(email.modules) if email is not None else 0

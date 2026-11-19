@@ -46,6 +46,10 @@ _SEV_MAP = {
 _CERT_IDS = {"cert_expirationStatus", "cert_startTime", "cert_expiration_time"}
 
 
+# A full testssl.sh run on one address takes a little over two minutes.
+TLS_TIMEOUT = 300.0
+
+
 def parse_testssl_json(text: str) -> list[dict]:
     """Extract testssl.sh entries with an id/severity/finding triple.
 
@@ -161,7 +165,7 @@ def _openssl_probe(host: str, port: int = 443) -> list[Finding]:
     return findings
 
 
-def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Finding], list[str]]:
+def analyze_host(host: str, *, timeout: float | None = TLS_TIMEOUT) -> tuple[list[Finding], list[str]]:
     """Run testssl.sh against one https host; return (findings, protocol_list)."""
     findings: list[Finding] = []
     protocols: list[str] = []
@@ -169,7 +173,9 @@ def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Find
     with temporary_output(prefix="soryntel_security_testssl_", suffix=".json") as outfile:
         tool = run(
             [
-                "testssl.sh", "--quiet", "--fast", "--jsonfile-pretty", outfile,
+                # One address per host: a site behind a CDN resolves to several and
+                # testssl.sh would repeat the whole scan on each of them.
+                "testssl.sh", "--quiet", "--fast", "--ip", "one", "--jsonfile-pretty", outfile,
                 f"https://{host}",
             ],
             timeout=timeout,
@@ -183,20 +189,25 @@ def analyze_host(host: str, *, timeout: float | None = 150.0) -> tuple[list[Find
             findings.append(
                 Finding(
                     module=MODULE_NAME,
-                    severity=Severity.MEDIUM,
+                    # The scanner not finishing says nothing about the host's TLS posture.
+                    severity=Severity.INFO,
                     title=f"testssl.sh timed out for {host} after {float(timeout):.0f}s",
                     detail="Applied a quick openssl fallback probe instead of the full TLS scan.",
                     recommendation="Re-run the TLS scan during off-peak hours or against a staging copy.",
+                    confidence="HIGH",
+                    verification_status="TOOL_INCOMPLETE",
                 )
             )
         elif not tool.ok:
             findings.append(
                 Finding(
                     module=MODULE_NAME,
-                    severity=Severity.MEDIUM,
+                    severity=Severity.INFO,
                     title=f"TLS check failed for {host}",
                     detail=f"testssl.sh rc={tool.returncode}.\n{tool.stderr.strip()[:300]}",
-                    recommendation="",
+                    recommendation="Re-run the TLS scan; only the quick openssl probe was applied.",
+                    confidence="HIGH",
+                    verification_status="TOOL_INCOMPLETE",
                 )
             )
         else:

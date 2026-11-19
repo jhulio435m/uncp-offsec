@@ -537,8 +537,10 @@ docker compose run --rm soryntel-security scan ejemplo.com --profile active-vali
 ```
 
 El resultado separa puntuación, cobertura y confianza. Un módulo solicitado que
-no concluye no recibe crédito; con cobertura inferior al 70% el veredicto es
-`INCONCLUSIVE`.
+no concluye no recibe crédito y baja la cobertura y la confianza, pero la
+calificación de riesgo se mantiene con la evidencia observada. Solo cuando el
+sondeo inicial de los sitios falla, y por tanto no se midió nada, el veredicto
+es `INCONCLUSIVE`.
 
 #### Sesión autenticada y APIs
 

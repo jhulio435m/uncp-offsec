@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
@@ -93,13 +94,28 @@ def registered_lookalikes(domain: str, resolve: Callable[[str], dict | None] = _
     return sorted(found, key=lambda item: (not item["mx"], item["domain"])), len(candidates)
 
 
-def _get_json(url: str, *, timeout: float = 45.0, data: bytes | None = None):
-    """GET (or POST when data is given) and decode JSON; raises OSError/ValueError on failure."""
+RETRY_WAIT = (2.0, 6.0)
+
+
+def _get_json(url: str, *, timeout: float = 45.0, data: bytes | None = None, sleep: Callable[[float], None] = time.sleep):
+    """GET (or POST when data is given) and decode JSON; raises OSError/ValueError on failure.
+
+    Free services fail often and briefly: a timeout or a 5xx answer is retried
+    twice. A 4xx answer is a real answer and is raised at once.
+    """
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     if data is not None:
         headers["Content-Type"] = "application/json"
-    with urlopen(Request(url, headers=headers, data=data), timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8", errors="replace"))
+    for attempt in range(len(RETRY_WAIT) + 1):
+        try:
+            with urlopen(Request(url, headers=headers, data=data), timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8", errors="replace"))
+        except OSError as exc:
+            status = getattr(exc, "code", None)
+            if (status is not None and status < 500) or attempt == len(RETRY_WAIT):
+                raise
+            sleep(RETRY_WAIT[attempt])
+    return None  # pragma: no cover - the loop always returns or raises
 
 
 def certificate_names(domain: str, fetch=_get_json) -> list[str]:
@@ -185,9 +201,24 @@ def run(domain: str, *, fetch=_get_json, resolve: Callable[[str], dict | None] =
                     continue
                 raise
             if isinstance(row, dict) and (row.get("ports") or row.get("vulns")):
-                reported.append({"ip": address, "ports": row.get("ports") or [], "vulns": row.get("vulns") or [], "hostnames": row.get("hostnames") or []})
+                hostnames = [str(name).lower() for name in row.get("hostnames") or []]
+                foreign = [name for name in hostnames if name != domain and not name.endswith("." + domain)]
+                reported.append({
+                    "ip": address, "ports": row.get("ports") or [], "vulns": row.get("vulns") or [], "hostnames": hostnames,
+                    # A CDN or shared host: what Shodan saw there belongs to other sites too.
+                    "shared": bool(foreign) or "cdn" in [str(tag).lower() for tag in row.get("tags") or []],
+                    "foreign": foreign,
+                })
         completed += 1
-        for row in reported:
+        for row in [item for item in reported if item["shared"]]:
+            result.findings.append(Finding(
+                MODULE_NAME, Severity.INFO, f"{row['ip']} is a shared address (CDN or shared hosting)",
+                "Shodan's ports and CVEs for this address were ignored: it also serves "
+                + (", ".join(row["foreign"][:5]) or "other sites")
+                + ", so they cannot be attributed to this domain.\nSource: Shodan InternetDB.",
+                "", confidence="HIGH", verification_status=THIRD_PARTY,
+            ))
+        for row in [item for item in reported if not item["shared"]]:
             result.findings.append(Finding(
                 MODULE_NAME, Severity.MEDIUM if row["vulns"] else Severity.INFO,
                 f"Shodan lists {len(row['ports'])} open port(s) on {row['ip']}"
