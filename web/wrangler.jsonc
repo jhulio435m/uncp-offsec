@@ -1,0 +1,14 @@
+// Cloudflare Workers: sirve el sitio estático de out/ y atiende /api/solicitud.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "soryntel-security",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "routes": [{ "pattern": "security.soryntel.com", "custom_domain": true }]
+}

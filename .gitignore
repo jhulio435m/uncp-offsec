@@ -30,3 +30,6 @@ auth-headers.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Impeccable: archivos de trabajo del skill de diseño
+.impeccable/
