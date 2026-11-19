@@ -53,6 +53,7 @@ _STATUS_ES = {
     "NO_CANDIDATES": "Sin candidatos",
     "MANUAL_REQUIRED": "Revisión manual",
     "SERVICE_CONFIRMED": "Servicio confirmado",
+    "THIRD_PARTY_REPORTED": "Reportado por terceros",
     "SCOPE_ENFORCED": "Limitado por el alcance",
     "CROSS_ENGINE_RESOLVED": "Resuelto entre motores",
     "CORRELATED": "Correlacionado",
@@ -77,6 +78,8 @@ _MODE_ES = {
     "exact-host": "host exacto",
     "domain-discovery": "descubrimiento por dominio",
     "internal-network": "red interna",
+    "source-code": "código fuente",
+    "external-exposure": "exposición pública",
 }
 
 
@@ -125,6 +128,8 @@ _WEB_LABELS = {
     "correlation": "Correlación de evidencia",
     "sast": "Código (SAST)",
     "sca": "Dependencias (SCA)",
+    "secrets": "Secretos en el código",
+    "exposure": "Exposición pública",
 }
 
 _SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4, "PASS": 5}
@@ -401,9 +406,17 @@ def render(payload: Any) -> str:
     email = data.get("email") or {}
     web = data.get("web") or {}
     email_section = _phase_section(email, "Seguridad del correo", _EMAIL_LABELS)
-    internal = (data.get("execution") or {}).get("target_mode") == "internal-network"
+    mode = (data.get("execution") or {}).get("target_mode")
+    special = {
+        "internal-network": ("Red interna", "Evaluación de red interna", "Postura de la red interna",
+                             "Este informe cubre solo las direcciones del alcance que respondieron al descubrimiento. Una dirección que no respondió no fue evaluada, y no se probaron credenciales ni se explotó nada."),
+        "source-code": ("Código fuente", "Revisión de código", "Postura del código",
+                        "Este informe cubre solo el árbol de código entregado, en su estado actual. No revisa el historial de Git ni la aplicación en ejecución."),
+        "external-exposure": ("Exposición pública", "Exposición pública del dominio", "Exposición pública",
+                              "Este informe reúne lo que fuentes públicas de terceros ya publican sobre el dominio. No se tocó ningún sistema de la organización y nada de lo listado fue verificado contra ella; por eso no da una calificación de riesgo."),
+    }.get(mode)
     web_section = _phase_section(
-        web, "Red interna" if internal else "Aplicación web e infraestructura", _WEB_LABELS
+        web, special[0] if special else "Aplicación web e infraestructura", _WEB_LABELS
     )
     inventory = _asset_inventory(web)
     dns_inventory = _dns_inventory(web)
@@ -418,11 +431,10 @@ def render(payload: Any) -> str:
     elapsed = execution.get("elapsed_seconds")
     elapsed_text = f" &middot; Duración: {float(elapsed):.0f} s" if elapsed is not None else ""
     exact_host = target_mode == "exact-host"
-    report_kind = "Evaluación de red interna" if internal else "Evaluación web de un host exacto" if exact_host and not email else "Evaluación combinada de correo y web" if email and web else "Evaluación web" if web else "Evaluación de correo"
-    score_label = "Postura de la red interna" if internal else "Postura web" if web and not email else "Postura del correo" if email and not web else "Postura general"
+    report_kind = special[1] if special else "Evaluación web de un host exacto" if exact_host and not email else "Evaluación combinada de correo y web" if email and web else "Evaluación web" if web else "Evaluación de correo"
+    score_label = special[2] if special else "Postura web" if web and not email else "Postura del correo" if email and not web else "Postura general"
     target_note = (
-        "Este informe cubre solo las direcciones del alcance que respondieron al descubrimiento. Una dirección que no respondió no fue evaluada, y no se probaron credenciales ni se explotó nada."
-        if internal else
+        special[3] if special else
         "Este informe cubre solo el host indicado y las URL que pertenecen a él. No evalúa otros subdominios ni la postura de correo de la organización."
         if exact_host and not email else
         "El puntaje resume solo las fases y los módulos que aparecen en este informe."

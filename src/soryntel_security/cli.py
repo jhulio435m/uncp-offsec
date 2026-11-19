@@ -370,6 +370,8 @@ def wizard():
 @click.option("--source", "source_path", type=click.Path(exists=True, file_okay=False, path_type=Path), help="Authorized local source tree for SAST/SCA.")
 @click.option("--sast", is_flag=True, help="Run Semgrep/Bandit against --source.")
 @click.option("--sca", is_flag=True, help="Run Trivy/pip-audit dependency analysis against --source.")
+@click.option("--secrets", "secrets_scan", is_flag=True, help="Look for committed credentials in --source.")
+@click.option("--exposure", "exposure_check", is_flag=True, help="Read what free public sources already publish about DOMAIN (passive).")
 @click.option("--anonymous-assessment", is_flag=True, help="Inspect anonymous auth/API exposure with safe HTTP methods; requires scope permission.")
 @click.option("--rate-limit-check", is_flag=True, help="Add 3-10 low-rate HEAD requests; requires anonymous assessment and scope permission.")
 @click.option("--compare", "compare_path", type=click.Path(exists=True, dir_okay=False, path_type=Path), help="Previous combined JSON report for change detection.")
@@ -399,7 +401,7 @@ def wizard():
 @click.option("--format", "fmt", default=None, type=click.Choice(["json", "html"]),
               help="Report format when using -o/--output.")
 def scan_cmd(
-    domain, profile, scope_path, active, no_email, no_web, with_ports, with_nmap, nmap_safe_scripts, nmap_vuln_authorized, with_nuclei, with_cves, cve_cache, dns_inventory, with_headers, with_crawl, content_discovery, wordlist, sqli_detection, sqlmap_requests, dast, zap_api_url, zap_ajax, auth_headers, api_spec_url, source_path, sast, sca, anonymous_assessment, rate_limit_check, compare_path, tls_limit,
+    domain, profile, scope_path, active, no_email, no_web, with_ports, with_nmap, nmap_safe_scripts, nmap_vuln_authorized, with_nuclei, with_cves, cve_cache, dns_inventory, with_headers, with_crawl, content_discovery, wordlist, sqli_detection, sqlmap_requests, dast, zap_api_url, zap_ajax, auth_headers, api_spec_url, source_path, sast, sca, secrets_scan, exposure_check, anonymous_assessment, rate_limit_check, compare_path, tls_limit,
     selectors, no_verify_cert, all_sources, exact_host, no_tool_time_limit, full_subdomain, resolvers, timeout, tls_timeout, output, fmt,
 ):
     """Assess both the email and web security posture of DOMAIN."""
@@ -438,8 +440,8 @@ def scan_cmd(
         raise click.UsageError("--cves requires --cve-cache DIR so responses are cached locally.")
     if content_discovery and wordlist is None:
         raise click.UsageError("--content-discovery requires an approved --wordlist FILE.")
-    if (sast or sca) and source_path is None:
-        raise click.UsageError("--sast/--sca require --source DIR.")
+    if (sast or sca or secrets_scan) and source_path is None:
+        raise click.UsageError("--sast/--sca/--secrets require --source DIR.")
     if api_spec_url and not dast:
         raise click.UsageError("--api-spec-url requires --dast.")
     if rate_limit_check and not anonymous_assessment:
@@ -530,6 +532,7 @@ def scan_cmd(
         "ports": "TCP port discovery (Naabu)", "nmap": "service validation (Nmap)",
         "vulns": "template matching (Nuclei)", "cves": "CVE enrichment", "dast": "DAST validation (ZAP)",
         "sast": "static analysis (Semgrep)", "sca": "dependency analysis (Trivy)",
+        "secrets": "committed credentials", "exposure": "public exposure sources",
         "correlation": "cross-engine correlation", "mail done": "email assessment complete",
     }
     with Progress(
@@ -584,6 +587,8 @@ def scan_cmd(
             source_path=source_path,
             sast_enabled=sast,
             sca_enabled=sca,
+            secrets_enabled=secrets_scan,
+            exposure_enabled=exposure_check,
             anonymous_enabled=anonymous_assessment,
             anonymous_max_targets=authorization.anonymous_max_targets if authorization else 80,
             rate_limit_check=rate_limit_check,
@@ -654,6 +659,14 @@ def network_cmd(targets, scope_path, top_ports, no_discovery, output, fmt):
     except ValueError as exc:
         raise click.UsageError(str(exc)) from exc
 
+    _finish_single_phase(
+        web_result, profile="internal-network", scope_name=authorization.name,
+        assessment_mode=authorization.assessment_mode, started=started, output=output, fmt=fmt,
+    )
+
+
+def _finish_single_phase(web_result, *, profile, scope_name, assessment_mode, started, output, fmt):
+    """Wrap one web-phase result as a report, print it and write it when asked."""
     from .models import CombinedScanResult
 
     combined = CombinedScanResult(domain=web_result.domain)
@@ -662,10 +675,10 @@ def network_cmd(targets, scope_path, top_ports, no_discovery, output, fmt):
     combined.web_modules = len(web_result.modules)
     combined.overall_score = round(float(web_result.total_score), 1)
     combined.overall_risk = web_result.risk_level
-    combined.scan_profile = "internal-network"
-    combined.scope_name = authorization.name
-    combined.assessment_mode = authorization.assessment_mode
-    combined.target_mode = "internal-network"
+    combined.scan_profile = profile
+    combined.scope_name = scope_name
+    combined.assessment_mode = assessment_mode
+    combined.target_mode = web_result.target_mode
     combined.elapsed_seconds = time.monotonic() - started
     combined_terminal.render_combined(combined)
 
@@ -677,6 +690,84 @@ def network_cmd(targets, scope_path, top_ports, no_discovery, output, fmt):
         else:
             combined_json.write(combined, output)
         click.echo(click.style(f"Report written to {output}", fg="green"))
+
+
+def _single_phase_result(label: str, modules: dict, target_mode: str):
+    """Score a set of modules that ran on their own (no web crawl around them)."""
+    from .models import WebScanResult
+    from .web.scoring import compute_coverage, compute_web_score
+
+    breakdown = compute_web_score(modules)
+    assessed = [module.assessed for module in modules.values()]
+    result = WebScanResult(
+        domain=label, modules=list(modules.values()), total_score=breakdown.total,
+        # Public-source data alone describes exposure, not how secure the organisation is.
+        risk_level=breakdown.risk_level if any(assessed) and target_mode != "external-exposure" else "INCONCLUSIVE",
+        coverage_score=compute_coverage(modules),
+        confidence="HIGH" if all(assessed) else "MEDIUM" if any(assessed) else "LOW",
+        target_mode=target_mode,
+    )
+    result.breakdown = breakdown  # type: ignore[attr-defined]
+    return result
+
+
+@cli.command("code")
+@click.argument("source", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--no-secrets", is_flag=True, help="Skip the search for committed credentials.")
+@click.option("--no-sca", is_flag=True, help="Skip dependency analysis.")
+@click.option("--no-sast", is_flag=True, help="Skip static analysis.")
+@click.option("-o", "--output", type=click.Path(dir_okay=False, path_type=Path), help="Write the report to this file.")
+@click.option("--format", "fmt", type=click.Choice(["json", "html"]), help="Report format when using -o/--output.")
+def code_cmd(source, no_secrets, no_sca, no_sast, output, fmt):
+    """Review a source tree you are authorized to read: SOURCE is its directory.
+
+    Looks for committed credentials, vulnerable dependencies and unsafe code
+    patterns. It reads files only; nothing is executed or sent anywhere.
+    """
+    from .web import secrets, static_analysis
+
+    started = time.monotonic()
+    modules = {}
+    if not no_secrets:
+        click.echo("  [..] secretos")
+        modules["secrets"] = secrets.run(source)
+    if not no_sca:
+        click.echo("  [..] dependencias")
+        modules["sca"] = static_analysis.sca(source)
+    if not no_sast:
+        click.echo("  [..] código")
+        modules["sast"] = static_analysis.sast(source)
+    if not modules:
+        raise click.UsageError("nothing to do: every check was skipped.")
+    _finish_single_phase(
+        _single_phase_result(str(source.resolve().name), modules, "source-code"),
+        profile="source-code", scope_name="", assessment_mode="identification-only",
+        started=started, output=output, fmt=fmt,
+    )
+
+
+@cli.command("exposure")
+@click.argument("domain")
+@click.option("-o", "--output", type=click.Path(dir_okay=False, path_type=Path), help="Write the report to this file.")
+@click.option("--format", "fmt", type=click.Choice(["json", "html"]), help="Report format when using -o/--output.")
+def exposure_cmd(domain, output, fmt):
+    """Read what free public sources already publish about DOMAIN.
+
+    Passive: it queries public DNS, Certificate Transparency, Shodan InternetDB
+    and Have I Been Pwned (plus Google Safe Browsing when
+    GOOGLE_SAFE_BROWSING_KEY is set). It sends nothing to DOMAIN's own systems.
+    """
+    from .web import exposure
+
+    domain = _target_value(domain)
+    started = time.monotonic()
+    click.echo(f"  [..] fuentes públicas sobre {domain}")
+    modules = {"exposure": exposure.run(domain)}
+    _finish_single_phase(
+        _single_phase_result(domain, modules, "external-exposure"),
+        profile="external-exposure", scope_name="", assessment_mode="identification-only",
+        started=started, output=output, fmt=fmt,
+    )
 
 
 @cli.command()

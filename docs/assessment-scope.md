@@ -28,6 +28,11 @@ pruebas acotadas y no destructivas.
   el alcance: descubrimiento de equipos, puertos TCP e identificación de
   servicios y versiones. No acepta rangos públicos ni direcciones fuera del
   alcance, y no prueba credenciales.
+- Búsqueda de credenciales subidas al código autorizado (`code`), indicando
+  archivo, línea y tipo sin copiar el valor.
+- Exposición pública (`exposure`): dominios parecidos registrados y lo que
+  Certificate Transparency, Shodan InternetDB, Have I Been Pwned y Google Safe
+  Browsing ya publican. Consulta pasiva; no contacta los sistemas evaluados.
 - Informe de evidencia, cobertura limitada, severidad y remediación sugerida.
 - Escaneo autenticado con encabezados de una cuenta de prueba de mínimo privilegio;
   las credenciales no se serializan en el informe.

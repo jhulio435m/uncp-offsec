@@ -29,6 +29,8 @@ MODULE_WEIGHTS: dict[str, tuple[float, str]] = {
     "dast": (20.0, "Application Security"),
     "sast": (12.0, "Application Security"),
     "sca": (8.0, "Platform Hygiene"),
+    "secrets": (10.0, "Application Security"),
+    "exposure": (6.0, "Attack Surface"),
     "anonymous_access": (10.0, "Application Security"),
 }
 

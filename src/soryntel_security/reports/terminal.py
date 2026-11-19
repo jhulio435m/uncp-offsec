@@ -109,7 +109,7 @@ def _render_web_score(result: WebScanResult) -> None:
 def render_web(result: WebScanResult) -> None:
     """Render only the web phase section."""
     console.print()
-    title = "INTERNAL NETWORK ASSESSMENT" if result.target_mode == "internal-network" else "EXACT-HOST WEB ASSESSMENT" if result.target_mode == "exact-host" else "WEB ASSET ASSESSMENT"
+    title = {"internal-network": "INTERNAL NETWORK ASSESSMENT", "source-code": "SOURCE CODE REVIEW", "external-exposure": "PUBLIC EXPOSURE", "exact-host": "EXACT-HOST WEB ASSESSMENT"}.get(result.target_mode, "WEB ASSET ASSESSMENT")
     console.rule(f"[bold]{title}[/bold]")
     console.print(f"  [bold]Target:[/bold] {result.domain}")
     if result.live_hosts:
@@ -167,7 +167,7 @@ def render_combined(combined: CombinedScanResult) -> None:
     total = combined.overall_score
     risk = combined.overall_risk
     style = _RISK_STYLE.get(risk, "bold")
-    phase_label = "COMBINED" if combined.email is not None and combined.web is not None else "INTERNAL NETWORK" if combined.target_mode == "internal-network" else "WEB ONLY" if combined.web is not None else "EMAIL ONLY"
+    phase_label = "COMBINED" if combined.email is not None and combined.web is not None else {"internal-network": "INTERNAL NETWORK", "source-code": "SOURCE CODE", "external-exposure": "PUBLIC EXPOSURE"}.get(combined.target_mode) or "WEB ONLY" if combined.web is not None else "EMAIL ONLY"
     module_summary = (
         f"email {combined.email_modules} modules · web {combined.web_modules} modules"
         if combined.email is not None and combined.web is not None else

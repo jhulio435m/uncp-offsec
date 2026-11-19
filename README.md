@@ -74,6 +74,43 @@ Reglas del alcance para este modo:
 - Una dirección que no responde al descubrimiento no se evalúa, y el informe lo
   dice. `--no-discovery` revisa todas las direcciones, hasta 64 por ejecución.
 
+## Exposición pública
+
+`soryntel-security exposure empresa.com` reúne lo que fuentes públicas y
+gratuitas ya dicen sobre un dominio. Es pasivo: no envía nada a los sistemas de
+la organización.
+
+| Qué busca | Fuente | Clave |
+| --- | --- | --- |
+| Dominios parecidos ya registrados (errores de tipeo, otras terminaciones) y si aceptan correo | DNS público | No |
+| Nombres de equipo publicados en certificados, y cuáles parecen internos | Certificate Transparency (crt.sh) | No |
+| Puertos y CVE que un escáner de Internet ya registró para sus direcciones | Shodan InternetDB | No |
+| Filtraciones públicas en las que el dominio es el servicio afectado | Have I Been Pwned | No |
+| Si los navegadores advierten sobre el dominio | Google Safe Browsing | `GOOGLE_SAFE_BROWSING_KEY` (gratuita) |
+
+Cada hallazgo indica su fuente y va marcado como reportado por terceros: no se
+verifica contra el objetivo y el informe no da calificación de riesgo. Si una
+fuente no responde, el informe lo dice en vez de darla por limpia.
+
+No cubre contraseñas de empleados filtradas en brechas de otras empresas: esa
+consulta exige una cuenta verificada y de pago.
+
+También se puede sumar a una evaluación completa con `scan DOMINIO --exposure`.
+
+## Revisión de código
+
+`soryntel-security code DIRECTORIO` revisa un árbol de código que usted está
+autorizado a leer, sin necesidad de un dominio. Solo lee archivos.
+
+- **Credenciales subidas al repositorio** (`secrets`): claves de AWS, tokens de
+  GitHub, claves privadas, webhooks y otros formatos. Usa Trivy si está
+  instalado y, si no, un detector propio con siete formatos de alta confianza.
+  El informe indica archivo, línea y tipo, pero **nunca el valor**. Solo revisa
+  los archivos actuales, no el historial de Git.
+- **Dependencias vulnerables** y **código inseguro**, descritos abajo.
+
+Opciones: `--no-secrets`, `--no-sca`, `--no-sast`, `-o informe.html`.
+
 ## Código y dependencias: qué lenguajes se cubren
 
 `scan --source DIR --sast --sca` revisa un árbol de código que usted autoriza.

@@ -16,10 +16,12 @@ from .web import (
     cves,
     discovery,
     dns_inventory,
+    exposure,
     headers,
     nmap,
     ports,
     probe,
+    secrets,
     sqli,
     static_analysis,
     tech,
@@ -31,7 +33,7 @@ from .web.owasp import coverage as owasp_coverage
 from .web.scoring import compute_coverage, compute_web_score
 from .web.tools import which
 
-WEB_MODULE_ORDER = ["subdomains", "live_hosts", "technology", "headers", "dns_inventory", "crawl", "anonymous_access", "content_discovery", "sqli", "tls", "ports", "nmap", "vulns", "cves", "dast", "sast", "sca", "correlation"]
+WEB_MODULE_ORDER = ["subdomains", "live_hosts", "technology", "headers", "dns_inventory", "crawl", "anonymous_access", "content_discovery", "sqli", "tls", "ports", "nmap", "vulns", "cves", "dast", "sast", "sca", "secrets", "exposure", "correlation"]
 
 
 def _scale_progress(
@@ -171,6 +173,8 @@ def run_web(
     source_path=None,
     sast_enabled: bool = False,
     sca_enabled: bool = False,
+    secrets_enabled: bool = False,
+    exposure_enabled: bool = False,
     anonymous_enabled: bool = False,
     anonymous_max_targets: int = 80,
     rate_limit_check: bool = False,
@@ -211,6 +215,10 @@ def run_web(
         steps.append("sast")
     if sca_enabled:
         steps.append("sca")
+    if secrets_enabled:
+        steps.append("secrets")
+    if exposure_enabled:
+        steps.append("exposure")
     steps.append("correlation")
     total_steps = len(steps)
     pos = 0
@@ -324,6 +332,12 @@ def run_web(
     if sca_enabled:
         tick("sca")
         modules["sca"] = static_analysis.sca(source_path)
+    if secrets_enabled:
+        tick("secrets")
+        modules["secrets"] = secrets.run(source_path)
+    if exposure_enabled:
+        tick("exposure")
+        modules["exposure"] = exposure.run(domain)
     tick("correlation")
     modules["correlation"] = correlation.run(modules)
 

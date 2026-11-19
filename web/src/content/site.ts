@@ -41,6 +41,7 @@ export const SERVICES = [
       "Tecnologías y versiones contra NVD y CISA KEV",
       "Pruebas dinámicas con OWASP ZAP y plantillas Nuclei revisadas",
       "SPF, DKIM, DMARC, MTA-STS, DANE y STARTTLS",
+      "Dominios que imitan al suyo y lo que ya es público sobre usted",
     ],
   },
   {
@@ -58,6 +59,7 @@ export const SERVICES = [
     name: "Código y dependencias",
     lead: "Revisión del código que usted nos entrega y de las librerías de las que depende.",
     checks: [
+      "Credenciales subidas al repositorio: claves, tokens y llaves privadas",
       "Análisis estático con Semgrep y Bandit",
       "Dependencias vulnerables en Python, Node.js, PHP, Ruby, Go, Rust, Java y .NET",
       "Hallazgos ubicados por archivo y línea",
