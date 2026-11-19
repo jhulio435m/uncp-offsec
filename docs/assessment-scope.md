@@ -29,7 +29,9 @@ pruebas acotadas y no destructivas.
   las credenciales no se serializan en el informe.
 - Importación de especificaciones OpenAPI HTTP(S) dentro del alcance.
 - SAST local mediante Semgrep/Bandit y SCA mediante Trivy/pip-audit cuando se
-  proporciona explícitamente el árbol de código autorizado.
+  proporciona explícitamente el árbol de código autorizado. Trivy cubre
+  dependencias de Python, Node.js, PHP, Ruby, Go, Rust, Java y .NET; Bandit y
+  pip-audit, solo Python. Lo que no se pudo analizar se declara incompleto.
 - Matriz OWASP Top 10:2025 por categoría con estado `PARTIAL`, `INCOMPLETE`,
   `NOT_ASSESSED` o `MANUAL_REQUIRED`; nunca declara cobertura total automática.
 - Evaluación anónima de rutas descubiertas mediante `GET`, `HEAD` y `OPTIONS`:

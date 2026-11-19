@@ -29,6 +29,31 @@ El informe HTML sale en español y con la marca. Los títulos y el detalle de ca
 hallazgo los escribe el módulo que lo produce y, por ahora, siguen en inglés; el
 informe JSON conserva los códigos originales de severidad y estado.
 
+## Código y dependencias: qué lenguajes se cubren
+
+`scan --source DIR --sast --sca` revisa un árbol de código que usted autoriza.
+
+| Qué | Con qué | Cobertura |
+| --- | --- | --- |
+| Dependencias vulnerables (SCA) | Trivy | Python, Node.js, PHP, Ruby, Go, Rust, Java y .NET, leyendo el archivo de bloqueo de cada uno |
+| Dependencias (sin Trivy) | pip-audit | Solo Python |
+| Código (SAST) | Semgrep, reglas `p/default` | Los lenguajes que cubre ese conjunto de reglas |
+| Código (sin Semgrep) | Bandit | Solo Python |
+
+La cobertura de Trivy está comprobada con la versión fijada en la imagen (0.74.0)
+sobre un archivo de bloqueo por ecosistema: `requirements.txt`, `package-lock.json`,
+`composer.lock`, `Gemfile.lock`, `go.mod`, `Cargo.lock`, `pom.xml` y
+`packages.lock.json`.
+
+El informe declara qué encontró y qué no pudo revisar:
+
+- lista los lenguajes y los archivos de dependencias que halló;
+- avisa de los manifiestos sin archivo de bloqueo (por ejemplo `package.json`
+  sin `package-lock.json`), porque sin versiones resueltas no hay nada que
+  correlacionar;
+- si solo están Bandit o pip-audit y el proyecto tiene otros lenguajes, marca
+  el módulo como incompleto en vez de darlo por revisado.
+
 ## Estructura del proyecto
 
 - `config/scopes/`: alcances de autorización versionados y plantilla para otros dominios.

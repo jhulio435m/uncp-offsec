@@ -16,6 +16,74 @@ EXCLUDED_SOURCE_DIRS = (
 )
 
 
+# Lockfiles and resolved manifests that Trivy's filesystem scanner reads. A
+# manifest without a lockfile has no resolved versions to correlate.
+LOCKFILES: dict[str, str] = {
+    "requirements.txt": "Python", "requirements.lock": "Python", "Pipfile.lock": "Python",
+    "poetry.lock": "Python", "uv.lock": "Python",
+    "package-lock.json": "Node.js", "yarn.lock": "Node.js", "pnpm-lock.yaml": "Node.js",
+    "composer.lock": "PHP",
+    "Gemfile.lock": "Ruby",
+    "go.mod": "Go",
+    "Cargo.lock": "Rust",
+    "pom.xml": "Java", "gradle.lockfile": "Java",
+    "packages.lock.json": ".NET",
+}
+# Manifest -> lockfiles that would make it resolvable.
+UNLOCKED: dict[str, tuple[str, tuple[str, ...]]] = {
+    "package.json": ("Node.js", ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")),
+    "composer.json": ("PHP", ("composer.lock",)),
+    "Gemfile": ("Ruby", ("Gemfile.lock",)),
+    "Cargo.toml": ("Rust", ("Cargo.lock",)),
+    "pyproject.toml": ("Python", ("poetry.lock", "uv.lock", "requirements.txt", "requirements.lock", "Pipfile.lock")),
+}
+SOURCE_LANGUAGES: dict[str, str] = {
+    ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript",
+    ".php": "PHP", ".rb": "Ruby", ".go": "Go", ".rs": "Rust", ".java": "Java", ".kt": "Kotlin",
+    ".cs": "C#", ".c": "C", ".cpp": "C++", ".swift": "Swift", ".scala": "Scala",
+}
+MAX_WALK_FILES = 20_000
+
+
+def _walk(source: Path):
+    """Yield files under source, skipping vendored and build directories."""
+    seen = 0
+    for root, dirs, files in os.walk(source):
+        dirs[:] = sorted(name for name in dirs if name not in EXCLUDED_SOURCE_DIRS and not name.startswith("."))
+        for name in sorted(files):
+            seen += 1
+            if seen > MAX_WALK_FILES:
+                return
+            yield Path(root) / name
+
+
+def detect_manifests(source: Path) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Return ({ecosystem: lockfiles}, {ecosystem: manifests without a lockfile})."""
+    locked: dict[str, list[str]] = {}
+    unlocked: dict[str, list[str]] = {}
+    by_dir: dict[Path, set[str]] = {}
+    for path in _walk(source):
+        by_dir.setdefault(path.parent, set()).add(path.name)
+    for directory, names in sorted(by_dir.items()):
+        for name in sorted(names):
+            if name in LOCKFILES:
+                locked.setdefault(LOCKFILES[name], []).append(str((directory / name).relative_to(source)))
+        for name, (ecosystem, locks) in UNLOCKED.items():
+            if name in names and not names.intersection(locks):
+                unlocked.setdefault(ecosystem, []).append(str((directory / name).relative_to(source)))
+    return locked, unlocked
+
+
+def detect_languages(source: Path) -> dict[str, int]:
+    """Count source files per language by extension."""
+    counts: dict[str, int] = {}
+    for path in _walk(source):
+        language = SOURCE_LANGUAGES.get(path.suffix.lower())
+        if language:
+            counts[language] = counts.get(language, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+
+
 def _severity(value: str) -> Severity:
     return {
         "critical": Severity.CRITICAL,
@@ -33,6 +101,7 @@ def sast(source: Path) -> ModuleResult:
     result = ModuleResult(name="sast")
     semgrep = which("semgrep")
     bandit = which("bandit")
+    languages = detect_languages(source)
     if semgrep:
         cmd = [semgrep, "scan", "--config", "p/default", "--json", "--metrics=off"]
         for excluded in EXCLUDED_SOURCE_DIRS:
@@ -92,6 +161,22 @@ def sast(source: Path) -> ModuleResult:
         return result
     if result.assessed and not result.findings:
         result.findings.append(Finding("sast", Severity.PASS, "No SAST findings", "No configured static rule matched; this is not proof of secure design.", ""))
+    if languages:
+        result.findings.append(Finding(
+            "sast", Severity.INFO, "Source languages found",
+            "\n".join(f"{name}: {count} file(s)" for name, count in languages.items()),
+            "", confidence="HIGH",
+        ))
+    not_python = [name for name in languages if name != "Python"]
+    if not semgrep and bandit and not_python:
+        # Bandit only understands Python: say so instead of implying the rest was reviewed.
+        result.assessed = False
+        result.findings.append(Finding(
+            "sast", Severity.INFO, "Non-Python source was not analysed",
+            "Bandit only analyses Python. Not analysed: " + ", ".join(not_python),
+            "Install Semgrep to cover the remaining languages.",
+            confidence="HIGH", verification_status="TOOL_INCOMPLETE",
+        ))
     return result
 
 
@@ -101,6 +186,7 @@ def sca(source: Path) -> ModuleResult:
     trivy = which("trivy")
     pip_audit = which("pip-audit")
     rows: list[dict] = []
+    locked, unlocked = detect_manifests(source)
     if trivy:
         cache_dir = os.environ.get("TRIVY_CACHE_DIR", "/tmp/soryntel-security-trivy-cache")
         tool = run_tool([trivy, "fs", "--cache-dir", cache_dir, "--format", "json", "--scanners", "vuln", "--quiet", str(source)], timeout=600)
@@ -108,7 +194,7 @@ def sca(source: Path) -> ModuleResult:
             payload = json.loads(tool.stdout or "{}")
             for target in payload.get("Results", []):
                 for vuln in target.get("Vulnerabilities") or []:
-                    rows.append({**vuln, "Target": target.get("Target", "")})
+                    rows.append({**vuln, "Target": target.get("Target", ""), "Type": target.get("Type", "")})
         except json.JSONDecodeError:
             pass
         result.assessed = tool.ok or bool(rows)
@@ -140,11 +226,37 @@ def sca(source: Path) -> ModuleResult:
         result.findings.append(Finding(
             "sca", _severity(str(row.get("Severity") or "high")),
             f"{cve or 'Dependency advisory'} in {row.get('PkgName', '')}",
-            f"Target: {row.get('Target', '')}\nInstalled: {row.get('InstalledVersion', '')}\nFixed: {row.get('FixedVersion', '')}",
+            f"Target: {row.get('Target', '')}"
+            + (f"\nEcosystem: {row.get('Type')}" if row.get("Type") else "")
+            + f"\nInstalled: {row.get('InstalledVersion', '')}\nFixed: {row.get('FixedVersion', '')}",
             "Update to a vendor-supported fixed version after compatibility testing.", confidence="HIGH",
             verification_status="VERSION_CORRELATED", cve_ids=[cve] if cve.startswith("CVE-") else [],
             owasp_categories=["A03:2025", "A08:2025"],
         ))
     if result.assessed and not result.findings:
         result.findings.append(Finding("sca", Severity.PASS, "No known dependency vulnerabilities", "No advisory matched the resolved manifest; unknown and unpublished flaws remain possible.", ""))
+    if locked:
+        result.findings.append(Finding(
+            "sca", Severity.INFO, "Dependency manifests found",
+            "\n".join(f"{ecosystem}: {', '.join(paths[:8])}" for ecosystem, paths in sorted(locked.items())),
+            "", confidence="HIGH",
+        ))
+    if unlocked:
+        result.findings.append(Finding(
+            "sca", Severity.LOW, "Manifests without a lockfile",
+            "\n".join(f"{ecosystem}: {', '.join(paths[:8])}" for ecosystem, paths in sorted(unlocked.items()))
+            + "\nWithout resolved versions these dependencies cannot be correlated with advisories.",
+            "Commit the lockfile so dependency versions can be audited.",
+            confidence="HIGH", verification_status="TOOL_INCOMPLETE",
+        ))
+    not_python = sorted(ecosystem for ecosystem in locked if ecosystem != "Python")
+    if not trivy and pip_audit and not_python:
+        # pip-audit only reads Python requirements: the other ecosystems were not checked.
+        result.assessed = False
+        result.findings.append(Finding(
+            "sca", Severity.INFO, "Non-Python dependencies were not analysed",
+            "pip-audit only analyses Python requirements. Not analysed: " + ", ".join(not_python),
+            "Install Trivy to cover the remaining ecosystems.",
+            confidence="HIGH", verification_status="TOOL_INCOMPLETE",
+        ))
     return result
